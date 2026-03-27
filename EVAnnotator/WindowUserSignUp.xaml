@@ -1,0 +1,117 @@
+﻿<Window x:Class="GenieSupervisor.WindowUserSignUp"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        xmlns:telerik="http://schemas.telerik.com/2008/xaml/presentation"
+        xmlns:local="clr-namespace:GenieSupervisor"
+        mc:Ignorable="d" Top="100" Left="200"
+        Height="580" Width="400" WindowStyle="None" WindowStartupLocation="CenterScreen" BorderBrush="RosyBrown" ResizeMode="NoResize" ShowInTaskbar="True" AllowsTransparency="False" BorderThickness="2">
+    <Window.Background>
+        <SolidColorBrush Opacity="0.9" Color="#FF363356"/>
+    </Window.Background>
+    <telerik:RadBusyIndicator x:Name="busyIndicator" BusyContent="Please wait for Confirmation" Background="Transparent" Foreground="HotPink" FontSize="18" FontFamily="Aerial" IsIndeterminate="True" Width="auto" Height="auto" DisplayAfter="0" telerik:StyleManager.Theme="Fluent">
+        <StackPanel Orientation="Vertical">
+            <Grid>
+                <TextBlock Text="Employee Authorization" FontSize="26" FontFamily="Calibri" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Center" Margin=" 0,10,0,0" FontWeight="Regular"/>
+                <Border Cursor="Hand" Height="30" Width="30" CornerRadius="50" VerticalAlignment="Top" HorizontalAlignment="Right">
+                    <Border.Background>
+                        <RadialGradientBrush>
+                            <GradientStop Color="#FF363356" Offset="0.968"/>
+                            <GradientStop Color="Red"/>
+                        </RadialGradientBrush>
+                    </Border.Background>
+                    <TextBlock TextWrapping="Wrap" Height="30" Width="30" FontSize="18" TextAlignment="Center" Foreground="White" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center" Text="x" PreviewMouseLeftButtonDown="ButtonClose_Click"></TextBlock>
+                </Border>
+            </Grid>
+
+            <StackPanel Orientation="Vertical" Margin="10,10,10,0">
+                <Border Width="140" Height="140" BorderBrush="LightGoldenrodYellow" BorderThickness="0" Padding="0" Margin="0,0,0,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="1*"></RowDefinition>
+                            <RowDefinition Height="auto"></RowDefinition>
+                        </Grid.RowDefinitions>
+                        <!--<Image Source="icons/UserProfile.png" Name="UserImage" Panel.ZIndex="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Stretch="Fill" Margin="0,0,0,0"></Image>-->
+                        <Ellipse Width="140" Height="130" Margin="0,0,0,0">
+                            <Ellipse.Fill>
+                                <ImageBrush ImageSource="/icon/evicon.png" Stretch="UniformToFill" AlignmentX="Left"/>
+                            </Ellipse.Fill>
+                        </Ellipse>
+                        <telerik:RadHyperlinkButton Content="Photo" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Bottom" Foreground="LightBlue" FontSize="15" Panel.ZIndex="1" Background="Transparent" Padding="5,2,5,2" Margin="66,0,94,-1" PreviewMouseLeftButtonDown="ChangePhotoMouseLeftButtonDown" Cursor="Hand" Grid.RowSpan="2"/>
+                    </Grid>
+                </Border>
+                <Grid Margin="0,20,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="90"></ColumnDefinition>
+                        <ColumnDefinition Width="1*"></ColumnDefinition>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="User Name" VerticalAlignment="Center" FontFamily="Tahoma" Foreground="LightGoldenrodYellow" FontSize="14" />
+                    <TextBox Name ="tbAccount" Text="{Binding UserAccount, UpdateSourceTrigger=PropertyChanged}" Grid.Column="1" Height="35" FontSize="15" Margin="5,0,0,0" CaretBrush="White"
+                         Foreground="White" BorderBrush="LightGoldenrodYellow" BorderThickness="1" Padding="0,5,0,0" VerticalAlignment="Bottom" Background="Transparent"/>
+                </Grid>
+                <Grid Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="90"></ColumnDefinition>
+                        <ColumnDefinition Width="1*"></ColumnDefinition>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Password" VerticalAlignment="Center" FontFamily="Tahoma" Foreground="LightGoldenrodYellow" FontSize="14" />
+                    <PasswordBox Name ="tbPassWord" Grid.Column="1" Height="35" FontSize="13" Margin="5,0,0,0" Foreground="White" CaretBrush="White" Background="Transparent" VerticalContentAlignment="Center" BorderBrush="LightGoldenrodYellow" BorderThickness="1" Padding="0,0,0,0"/>
+                </Grid>
+
+                <Grid Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="90"></ColumnDefinition>
+                        <ColumnDefinition Width="1*"></ColumnDefinition>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Confirm" VerticalAlignment="Center" FontFamily="Tahoma" Foreground="LightGoldenrodYellow" FontSize="14" />
+                    <PasswordBox Name ="tbConfirmPassWord" Grid.Column="1" Height="35" FontSize="13" Margin="5,0,0,0" CaretBrush="White" Foreground="White" Background="Transparent" VerticalContentAlignment="Center" BorderBrush="LightGoldenrodYellow" BorderThickness="1" Padding="0,0,0,0"/>
+                </Grid>
+
+                <Grid Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="90"></ColumnDefinition>
+                        <ColumnDefinition Width="1*"></ColumnDefinition>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Name" VerticalAlignment="Center" FontFamily="Tahoma" Foreground="LightGoldenrodYellow" FontSize="14" />
+                    <TextBox Name ="tbUserName" Grid.Column="1" Height="35" FontSize="15" Margin="5,0,0,0" Foreground="White" CaretBrush="White" Background="Transparent" VerticalContentAlignment="Center" Text="{Binding UserName, UpdateSourceTrigger=PropertyChanged}" BorderBrush="LightGoldenrodYellow" BorderThickness="1" Padding="0,5,0,0"/>
+                </Grid>
+
+                <Grid Margin="0,10,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="90"></ColumnDefinition>
+                        <ColumnDefinition Width="1*"></ColumnDefinition>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="Access Level" VerticalAlignment="Center" FontFamily="Tahoma" Foreground="LightGoldenrodYellow" FontSize="13" />
+                    <telerik:RadComboBox Name ="cbAccessLevel" Grid.Column="1" Height="35"  Margin="5,0,0,0" telerik:StyleManager.Theme="Expression_Dark" Foreground="{Binding AccessLevelBrushColor}" BorderBrush="Black" BorderThickness="1" Width="150" HorizontalAlignment="Left" Padding="5" FontSize="13" FontFamily="Lucida Console" SelectionChanged="cbAccessLevelSelectionChanged" VerticalContentAlignment="Center">
+                        <telerik:RadComboBoxItem Padding="0,5" FontSize="13" FontFamily="Tahoma" Foreground="LightGreen" IsSelected="True" Content="Admin"></telerik:RadComboBoxItem>
+                        <telerik:RadComboBoxItem Padding="0,5" FontSize="13" FontFamily="Tahoma" Foreground="DeepSkyBlue" Content="Manager"></telerik:RadComboBoxItem>
+                        <telerik:RadComboBoxItem Padding="0,5" FontSize="13" FontFamily="Tahoma" Foreground="LightYellow" Content="Guest"></telerik:RadComboBoxItem>
+                    </telerik:RadComboBox>
+                </Grid>
+                <StackPanel Orientation="Vertical">
+                    <TextBlock Name="tbUnvalidPassword" FontSize="13" Foreground="Salmon" TextAlignment="Center" Text="Entered Password not matching or Invalid!" Margin="30,20,30,0" Visibility="Collapsed" TextWrapping="Wrap"></TextBlock>
+                    <TextBlock Name="tbUnvalidAccount" FontSize="13" Foreground="Salmon" TextAlignment="Center" Text="This User Account already exits!" Margin="30,20,30,0" Visibility="Collapsed" TextWrapping="Wrap"></TextBlock>
+                    <TextBlock Name="tbInvalidEntry" FontSize="13" Foreground="Salmon" TextAlignment="Center" Text="Fields Cannot be blank..! Please Fill all the fields." Margin="30,20,30,0" Visibility="Collapsed" TextWrapping="Wrap"/>
+                    <TextBlock Name="tbResponseMsg" FontSize="13" Foreground="LawnGreen" TextAlignment="Center" Text="" Margin="30,20,30,0" Visibility="Collapsed" TextWrapping="Wrap"/>
+                </StackPanel>
+            </StackPanel>
+
+            <StackPanel HorizontalAlignment="Center"  VerticalAlignment="Bottom" Margin="0,20,20,10" Orientation="Vertical">
+                <Border Cursor="Hand" Background="Transparent">
+                    <Button x:Name="btnSave" Margin="10,0" Content="Submit" HorizontalAlignment="Center" Height="auto" TabIndex="2" FontFamily="Lucida" Background="LightGoldenrodYellow"
+                        VerticalAlignment="Center" VerticalContentAlignment="Center" Padding="15,5" Width="auto" PreviewMouseDown="ButtonSave_Click" Foreground="Black" FontSize="16"></Button>
+
+                    <!--<Label Height="30" FontSize="15" Foreground="White" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Center" Content="Save" PreviewMouseLeftButtonDown="ButtonSave_Click"></Label>-->
+                </Border>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <Label HorizontalAlignment="Center" Content="or" Foreground="LightGoldenrodYellow" Visibility="Collapsed" FontSize="14"></Label>
+                    <Label Height="30">
+                        <TextBlock TextDecorations="Underline" Foreground="Yellow" PreviewMouseLeftButtonDown="ButtonClose_Click" FontSize="14" Cursor="Hand">Back</TextBlock>
+                    </Label>
+                </StackPanel>
+            </StackPanel>
+        </StackPanel>
+    </telerik:RadBusyIndicator>    
+</Window>

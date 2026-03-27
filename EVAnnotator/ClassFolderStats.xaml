@@ -1,0 +1,174 @@
+﻿<Window x:Class="GenieSupervisor.ClassFolderStats"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:telerik="http://schemas.telerik.com/2008/xaml/presentation"
+        xmlns:local="clr-namespace:GenieSupervisor"
+        mc:Ignorable="d"
+        TextElement.FontWeight="Regular"
+        TextElement.FontSize="14"
+        TextElement.FontFamily="Segoe UI"
+        Left="300" Top="150" WindowStyle="None" BorderThickness="1" MinWidth="650" MaxWidth="950" Width="auto" Height="auto" MaxHeight="700" BorderBrush="Black"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize" ShowInTaskbar="False" MinHeight="400" SizeToContent="WidthAndHeight">
+    <Grid Background="#FF686262">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="30"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <StackPanel Orientation="Horizontal" Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Stretch" Height="30">
+            <Label Content="Class Folder Stats"  HorizontalAlignment="Left" FontSize="15" Foreground="White" FontStyle="Italic" Margin="10,0,0,0"/>
+        </StackPanel>
+        <Border Cursor="Hand" Height="30" Width="30" Visibility="Collapsed" CornerRadius="50" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="2,0,30,0">
+            <Border.Background>
+                <RadialGradientBrush>
+                    <GradientStop Color="#FF686262" Offset="0.968"/>
+                    <GradientStop Color="Red"/>
+                </RadialGradientBrush>
+            </Border.Background>
+            <TextBlock TextWrapping="Wrap" Height="30" Width="50" FontSize="18" TextAlignment="Center" Foreground="White" FontWeight="ExtraBold" VerticalAlignment="Center" ToolTip="Minimize" HorizontalAlignment="Center" Text="-" PreviewMouseLeftButtonDown="ButtonMinimize_Click"></TextBlock>
+        </Border>
+        <Border Cursor="Hand" Height="30" Width="30" CornerRadius="50" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="2,0">
+            <Border.Background>
+                <RadialGradientBrush>
+                    <GradientStop Color="#FF686262" Offset="0.968"/>
+                    <GradientStop Color="Red"/>
+                </RadialGradientBrush>
+            </Border.Background>
+            <TextBlock TextWrapping="Wrap" Height="30" Width="30" FontSize="18" TextAlignment="Center" Foreground="White" FontWeight="Bold" VerticalAlignment="Center" ToolTip="Exit" HorizontalAlignment="Center" Text="x" PreviewMouseLeftButtonDown="ButtonSaveClose_Click"/>
+        </Border>
+        <Grid Grid.Row="1" Background="#FF4C3F3F">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="0"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="0"/>
+                <RowDefinition Height="40"/> 
+            </Grid.RowDefinitions>
+            <telerik:GroupBox Grid.Row="0" Header="DataSheet Loaded" Height="auto" Margin="5,5,5,0" Foreground="White" FontSize="12" FontFamily="Tahoma" BorderBrush="White" BorderThickness="1">
+                <telerik:RadListBox x:Name="listLoadedFile" Grid.Row="1" Height="auto" Background="Transparent" Foreground="Wheat" ItemsSource="{Binding LoadedFileList}" MinHeight="50" MaxHeight="120" 
+                         telerik:StyleManager.Theme="Expression_Dark" ScrollViewer.VerticalScrollBarVisibility="Auto" Padding="5,5,0,10" SelectionMode="Extended" SelectionChanged="listLoadedFile_SelectionChanged" >
+                    <telerik:RadListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding}" Padding="0,2" FontSize="12" TextAlignment="Left" Foreground="Wheat" HorizontalAlignment="Stretch"  VerticalAlignment="Stretch"/>
+                        </DataTemplate>
+                    </telerik:RadListBox.ItemTemplate>
+                </telerik:RadListBox>
+            </telerik:GroupBox>
+            <StackPanel Orientation="Horizontal" Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Left" Height="30" Margin="5,5,20,0">
+                <Button Width="20" Height="15" Background="White" Margin="5,0,0,0"/>
+                <Label Content="Class Found"  HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="12" Foreground="Wheat" FontWeight="Regular" Margin="0"/>
+                <Button Width="20" Height="15" Background="HotPink" Margin="20,0,0,0"/>
+                <Label Content="No Class Found"  HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="12" Foreground="Wheat" FontWeight="Regular" Margin="0"/>
+                <Button Width="20" Height="15" Background="GreenYellow" Margin="20,0,0,0"/>
+                <Label Content="Temporary Class Added"  HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="12" Foreground="Wheat" FontWeight="Regular" Margin="0"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Right" Height="auto" Margin="0,10,20,0">
+                <TextBlock x:Name="tbClassCountHeader" Text="Total Region Count : " Width="auto" HorizontalAlignment="Center" TextAlignment="Center" VerticalAlignment="Bottom" FontSize="14" Foreground="WhiteSmoke" FontWeight="SemiBold" Margin="5,0,0,0"/>
+                <TextBlock x:Name="tbClassCount" Text="0"  HorizontalAlignment="Left" VerticalAlignment="Top" FontSize="14" Foreground="Wheat" FontWeight="SemiBold" Margin="5,0,0,0"/>
+            </StackPanel>
+            <telerik:GroupBox Grid.Row="2" Header="" Margin="5,0" Foreground="Brown" FontSize="12" FontFamily="Tahoma" BorderBrush="White" BorderThickness="1">
+                <ListView x:Name="lvClassList" Margin="0" HorizontalContentAlignment="Center" Foreground="Black" FontWeight="Regular" FontSize="13" 
+                               ScrollViewer.HorizontalScrollBarVisibility="Disabled" ItemsSource="{Binding}" Background="#FF5A5555">
+                    <ListView.Resources>
+                        <DataTemplate x:Key="DataTemplate">
+                            <Border BorderBrush="Black" BorderThickness="1,0,0,0"/>
+                        </DataTemplate>
+                    </ListView.Resources>
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            <Setter Property="BorderBrush" Value="White"></Setter>
+                            <Setter Property="BorderThickness" Value="0,0,0,0.3"></Setter>
+                            <Setter Property="Height" Value="22"></Setter>
+                            
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="Gray"/>
+                                </Trigger>
+                                <Trigger Property="IsFocused" Value="True">
+                                    <Setter Property="Background" Value="#4F808080"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>                        
+                    </ListView.ItemContainerStyle>
+                    
+                    <ListView.View>
+                        <GridView>
+                            <GridView.ColumnHeaderContainerStyle>
+                                <Style TargetType="{x:Type GridViewColumnHeader}">
+                                    <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                                    <Setter Property="Background" Value="#FF948F88"/>
+                                    <Setter Property="FontWeight" Value="Bold"/>
+                                </Style>
+                            </GridView.ColumnHeaderContainerStyle>
+
+                            <GridViewColumn Header="Class Name" Width = "250">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding ClassName}" TextAlignment="Left" Foreground="{Binding FieldBackColor}"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="Alias" Width = "100">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding AliasName}" TextAlignment="Center" Foreground="{Binding FieldBackColor}"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="Current ID" Width = "100">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding CurrentClassID}" TextAlignment="Center" Foreground="{Binding FieldBackColor}"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="Single Spot Count" Width = "{Binding SetColumnWidthField}">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding SingleSpotCount}" TextAlignment="Center" Foreground="{Binding FieldBackColor}"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="Phase Contrast Count" Width = "{Binding SetColumnWidthField}">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding PhaseContrastCount}" TextAlignment="Center"  Foreground="{Binding FieldBackColor}"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="Class Type" Width = "150">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding ClassType}" TextAlignment="Center"  Foreground="{Binding FieldBackColor}"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                            <GridViewColumn Header="Total Count" Width = "150">
+                                <GridViewColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Count}" TextAlignment="Center" Foreground="{Binding FieldBackColor}"/>
+                                    </DataTemplate>
+                                </GridViewColumn.CellTemplate>
+                            </GridViewColumn>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </telerik:GroupBox>
+            
+            <StackPanel Grid.Row="3" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,5,5,5">
+                <Label Foreground="WhiteSmoke"  Content="Datasheet Selected :" VerticalAlignment="Center" FontSize="13"/>
+                <TextBlock x:Name="tbDatasheetName" TextWrapping="Wrap" Height="auto" Width="auto" MaxWidth="800" Foreground="Wheat" FontWeight="Normal" Text="" VerticalAlignment="Center" FontSize="12"/>
+            </StackPanel>
+            <Border BorderBrush="White" Grid.Row="4"  Height="auto" Width="auto" Margin="0" BorderThickness="0,0.7,0,0" CornerRadius="0.2">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right" Height="auto" Margin="0,0,15,0">
+                    <telerik:RadButton x:Name="btnCSVExport" CornerRadius="10" Content="Export CSV" HorizontalAlignment="Center" BorderBrush="Black" Background="#FFE7E7E0" Foreground="Brown" FontSize="15" VerticalContentAlignment="Center" Width="auto" 
+                        telerik:StyleManager.Theme="Expression_Dark" Height="25" Padding="20,0" ToolTip="Export to CSV" PreviewMouseLeftButtonDown="ButtonCSVExport_Click" Margin="20,0,0,0"/>
+                    <telerik:RadButton x:Name="btnExit" CornerRadius="10" Content="OK" HorizontalAlignment="Center" BorderBrush="Black" Background="#FFE7E7E0" Foreground="Brown" FontSize="15" VerticalContentAlignment="Center" Width="auto" 
+                        telerik:StyleManager.Theme="Expression_Dark" Height="25" Padding="20,0" ToolTip="Close" PreviewMouseLeftButtonDown="ButtonSaveClose_Click" Margin="20,0,0,0"/>
+                </StackPanel>
+            </Border>            
+        </Grid>
+    </Grid>
+</Window>

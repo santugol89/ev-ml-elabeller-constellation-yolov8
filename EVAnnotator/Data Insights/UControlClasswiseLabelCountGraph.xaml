@@ -1,0 +1,145 @@
+﻿<UserControl x:Class="GenieSupervisor.UControlClasswiseLabelCountGraph"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:telerik="http://schemas.telerik.com/2008/xaml/presentation"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:local="clr-namespace:GenieSupervisor"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="30"/>
+        </Grid.RowDefinitions>
+
+        <telerik:RadCartesianChart 
+                      x:Name="ChartLabelClasswiseCount"
+                      Grid.Column="0"
+                      Palette="Fluent"
+                      VerticalAlignment="Stretch"
+                      HorizontalAlignment="Stretch"
+                      Margin="10,0,10,10"
+                      HoverMode="None" Foreground="HotPink">
+
+            <telerik:RadCartesianChart.HorizontalAxis>
+                <telerik:CategoricalAxis SmartLabelsMode="None" LabelRotationAngle="0" ShowLabels="True" LabelFitMode="Rotate" TickThickness="0" PlotMode="OnTicksPadded">
+                    <telerik:CategoricalAxis.TitleTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="" Padding="0"/>
+                        </DataTemplate>
+                    </telerik:CategoricalAxis.TitleTemplate>
+                    <telerik:CategoricalAxis.LabelStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="White" />
+                            <Setter Property="TextWrapping" Value="WrapWithOverflow" />
+                            <Setter Property="Width" Value="90" />
+                            <Setter Property="FontSize" Value="14" />
+                            <Setter Property="TextAlignment" Value="Center"/>
+                            <Setter Property="Margin" Value="0,0,0,0" />
+                            <Setter Property="FontWeight" Value="Bold" />
+                        </Style>
+                    </telerik:CategoricalAxis.LabelStyle>
+                </telerik:CategoricalAxis>
+            </telerik:RadCartesianChart.HorizontalAxis>
+
+            <telerik:BarSeries PaletteMode="DataPoint" ValueBinding="ClassCount" CategoryBinding="ClassAlias" ItemsSource="{Binding DistByLabelCount}">
+                <telerik:BarSeries.VerticalAxis>
+                    <telerik:LinearAxis SmartLabelsMode="SmartStep" LabelRotationAngle="-45" LabelFitMode="None" Minimum="0" HorizontalLocation="Left">
+                        <telerik:LinearAxis.TitleTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="Count" Padding="0" FontSize="16"/>
+                            </DataTemplate>
+                        </telerik:LinearAxis.TitleTemplate>
+                        <telerik:LinearAxis.LabelTemplate>
+                            <DataTemplate>
+                                <TextBlock Width="30" FontWeight="SemiBold" Foreground="LightGoldenrodYellow" Text="{Binding}" TextAlignment="Center" />
+                            </DataTemplate>
+                        </telerik:LinearAxis.LabelTemplate>
+                    </telerik:LinearAxis>
+                </telerik:BarSeries.VerticalAxis>
+                <telerik:BarSeries.LegendSettings>
+                    <telerik:DataPointLegendSettings TitleBinding="ClassAlias" />
+                </telerik:BarSeries.LegendSettings>
+                <telerik:BarSeries.TooltipTemplate>
+                    <DataTemplate>
+                        <Border Background="FloralWhite" BorderBrush="Black" BorderThickness="1" Padding="5" CornerRadius="3">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock HorizontalAlignment="Center">
+                                            <Run Text="{Binding DataItem.ClassName}"/>
+                                            <Run Text=" - "/>                                            
+                                            <Run Text="{Binding DataItem.ClassCount}"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </telerik:BarSeries.TooltipTemplate>
+            </telerik:BarSeries>
+
+            <telerik:LineSeries ValueBinding="FrequencyPercent" CategoryBinding="ClassAlias" ItemsSource="{Binding DistByLabelCount}" StrokeThickness="1.5" Stroke="Wheat">
+                <telerik:LineSeries.VerticalAxis>
+                    <telerik:LinearAxis HorizontalLocation="Right" Margin="0,0,10,0" SmartLabelsMode="SmartStep">
+                        <telerik:LinearAxis.TitleTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="Frequency (%)" Padding="0" FontSize="16"/>
+                            </DataTemplate>
+                        </telerik:LinearAxis.TitleTemplate>
+                        <telerik:LinearAxis.LabelTemplate>
+                            <DataTemplate>
+                                <TextBlock Foreground="Wheat" Text="{Binding}" TextAlignment="Right" FontWeight="SemiBold"/>
+                            </DataTemplate>
+                        </telerik:LinearAxis.LabelTemplate>
+                    </telerik:LinearAxis>
+                </telerik:LineSeries.VerticalAxis>
+                <telerik:LineSeries.PointTemplate>
+                    <DataTemplate>
+                        <Ellipse Height="7" Width="7 " Fill="White"/>
+                    </DataTemplate>
+                </telerik:LineSeries.PointTemplate>
+
+                <telerik:LineSeries.LegendSettings>
+                    <telerik:SeriesLegendSettings Title="Percentage" />
+                </telerik:LineSeries.LegendSettings>
+
+                <telerik:LineSeries.TooltipTemplate>
+                    <DataTemplate>
+                        <Border Background="FloralWhite" BorderBrush="Black" BorderThickness="1" Padding="5" CornerRadius="3">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock HorizontalAlignment="Center" Foreground="Red">
+                                            <Run Text="{Binding DataItem.ClassName}"/>
+                                            <Run Text=" - "/>                                            
+                                            <Run Text="{Binding DataItem.FrequencyPercent, StringFormat={}{0}%}"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </telerik:LineSeries.TooltipTemplate>
+            </telerik:LineSeries>
+
+            <telerik:RadCartesianChart.Grid>
+                <telerik:CartesianChartGrid MajorLinesVisibility="None" Opacity="0.1">
+                    <telerik:CartesianChartGrid.MajorYLineStyle>
+                        <Style TargetType="{x:Type Line}">
+                            <Setter Property="Stroke" Value="Black"/>
+                        </Style>
+                    </telerik:CartesianChartGrid.MajorYLineStyle>
+                </telerik:CartesianChartGrid>
+            </telerik:RadCartesianChart.Grid>
+            <telerik:RadCartesianChart.Behaviors>
+                <telerik:ChartTooltipBehavior InitialShowDelay="0" ShowDuration="3000"/>
+            </telerik:RadCartesianChart.Behaviors>
+        </telerik:RadCartesianChart>
+
+        <StackPanel x:Name="ChartLegend" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,5">
+            <StackPanel Orientation="Horizontal">
+                <Rectangle Width="12" Height="12" Fill="White"/>
+                <TextBlock Text="Count" Margin="5,0" Foreground="LightGoldenrodYellow" FontSize="14" FontWeight="SemiBold"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="20,0">
+                <Rectangle Width="12" Height="2" VerticalAlignment="Center" Fill="Wheat" />
+                <TextBlock Text="Frequency" Margin="5,0" Foreground="LightGoldenrodYellow" FontSize="14" FontWeight="SemiBold"/>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</UserControl>

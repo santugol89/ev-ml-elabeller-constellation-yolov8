@@ -1,0 +1,467 @@
+﻿<telerik:RadWindow x:Class="GenieSupervisor.Data_Augmentation.WindowAugmentation"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:telerik="http://schemas.telerik.com/2008/xaml/presentation" 
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        xmlns:local="clr-namespace:GenieSupervisor"
+        mc:Ignorable="d" telerik:StyleManager.Theme="Expression_Dark"
+        Height="450" Width="800" HideMinimizeButton="True" HideMaximizeButton="True" BorderBrush="White" BorderThickness="2" Loaded="RadWindow_Loaded">
+    <telerik:RadWindow.Header>
+        <StackPanel VerticalAlignment="Center" HorizontalAlignment="Left" Orientation="Horizontal">
+            <materialDesign:PackIcon Background="Transparent" Foreground="White" Kind="Database" Height="18" Width="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <TextBlock Text="Data Augmentation" FontStyle="Italic" FontSize="14" Margin="10,0,0,0" FontWeight="SemiBold"/>
+        </StackPanel>
+    </telerik:RadWindow.Header>
+    <telerik:RadBusyIndicator x:Name="busyIndicator" BusyContent="{Binding BusyMessage}" Background="Transparent" Foreground="White" FontSize="12"
+                              IsIndeterminate="False" Width="auto" DisplayAfter="0" telerik:StyleManager.Theme="Expression_Dark" VerticalContentAlignment="Stretch">
+        <Grid x:Name="GridAug" Background="#FF3C3A3A">
+            <Grid.Resources>
+                <local:WidthConverter x:Key="lvAutoWidth"/>
+                <local:InvertVisibilityConverter x:Key="InvertVisibilityConverter"/>
+                <local:BoolToVisibilityConverter x:Key="VisibilityBoolConverter"/>
+                <local:VisibilityToBoolConverter x:Key="BoolToVisibilityConverter"/>
+            </Grid.Resources>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="0"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="50"/>
+            </Grid.RowDefinitions>
+            <Label x:Name="lblNotify" Grid.RowSpan="4" Content="No Data Found. Please complete train/val/test DataSplit operation first." Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="30" Foreground="White" Panel.ZIndex="5"/>
+            <GroupBox Grid.Row="0" Header="Mode" Margin="5,0" Foreground="#FFF33E98" FontSize="15" FontWeight="SemiBold" BorderBrush="Wheat" BorderThickness="0.2">
+                <StackPanel Orientation="Horizontal" Margin="0" HorizontalAlignment="Center">
+                    <RadioButton x:Name="radNormal" Style="{StaticResource MaterialDesignTabRadioButton}" Foreground="LightGoldenrodYellow" BorderBrush="#FF19D32F" 
+                                             Cursor="Hand" Margin="0" Height="auto" Width="auto" IsChecked="True" Content="Normal"/>
+                    <RadioButton x:Name="radRandom" Style="{StaticResource MaterialDesignTabRadioButton}" Foreground="LightGoldenrodYellow" BorderBrush="#FF19D32F" 
+                                             Cursor="Hand" Margin="50,0,0,0" Height="auto" Width="auto" IsChecked="False" Content="Random"/>
+                </StackPanel>
+            </GroupBox>
+            <GroupBox Grid.Row="1" Header="Statistics" Margin="5,3" Foreground="#FFF33E98" FontSize="15" FontWeight="SemiBold" BorderBrush="Wheat" BorderThickness="0.2">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="100"/>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="150"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid Grid.Column="0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="60"/>
+                            <RowDefinition Height="auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" x:Name="tbTotalRegionHeader" Text="Total Regions"  TextAlignment="Center" Margin="0,5,0,5" Padding="5" Height="auto" Width="auto" TextWrapping="Wrap" VerticalAlignment="Center" HorizontalAlignment="Center" Foreground="LightGoldenrodYellow" FontSize="14"/>
+                        <TextBlock Grid.Row="1" Text="{Binding TotalCount}" Margin="10,5,0,5" Height="auto" Width="auto" VerticalAlignment="Center" TextAlignment="Center" HorizontalAlignment="Center" Foreground="LightGoldenrodYellow" FontSize="14"/>
+                    </Grid>
+                    <Grid Grid.Column="1">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="60"/>
+                            <RowDefinition Height="auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" x:Name="tbAnnotateRegionHeader" Text="Raw Annotated Regions" TextAlignment="Center" Margin="15,5,0,5" Padding="5" Height="auto" Width="auto" TextWrapping="Wrap" VerticalAlignment="Top" HorizontalAlignment="Center" Foreground="LightGoldenrodYellow" FontSize="14"/>
+                        <TextBlock Grid.Row="1" Text="{Binding AnnotatedRegionCount}" Margin="10,5,0,5" Height="auto" Width="auto" VerticalAlignment="Center" TextAlignment="Center" HorizontalAlignment="Center" Foreground="LightGoldenrodYellow" FontSize="14"/>
+                    </Grid>
+                    <Grid Grid.Column="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="60"/>
+                            <RowDefinition Height="auto"/>
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" x:Name="tbAugmentRegionHeader" Text="Total Augmented Regions" TextAlignment="Center" Margin="0,5,0,5" Padding="5" Height="auto" Width="auto" TextWrapping="Wrap" VerticalAlignment="Top" HorizontalAlignment="Center" Foreground="LightGoldenrodYellow" FontSize="14"/>
+                        <TextBlock Grid.Row="1" Text="{Binding AugmentedTotalCount}" Margin="10,5,0,5" Height="auto" Width="auto" VerticalAlignment="Center" TextAlignment="Center" HorizontalAlignment="Center" Foreground="LightGoldenrodYellow" FontSize="14"/>
+                    </Grid>
+
+                    <telerik:RadListBox x:Name="lvStatistics" Grid.Column="3" Background="Transparent"  BorderBrush="#FF646464" BorderThickness="0" VerticalAlignment="Center" VerticalContentAlignment="Top" Margin="0" Padding="0,0" ScrollViewer.HorizontalScrollBarVisibility="Auto"  HorizontalAlignment="Stretch">
+                        <telerik:RadListBox.ItemContainerStyle>
+                            <Style TargetType="telerik:RadListBoxItem">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="{x:Type telerik:RadListBoxItem}">
+                                            <ContentPresenter/>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </telerik:RadListBox.ItemContainerStyle>
+                        <telerik:RadListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <VirtualizingStackPanel Orientation="Horizontal" />
+                            </ItemsPanelTemplate>
+                        </telerik:RadListBox.ItemsPanel>
+                        <telerik:RadListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Name="HighlightBorder" Margin="0" Padding="5,0" BorderThickness="0" BorderBrush="#FF606060">
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="60"/>
+                                            <RowDefinition Height="auto"/>
+                                        </Grid.RowDefinitions>
+                                        <TextBlock x:Name="tbClass" Grid.Row="0" Text="{Binding ClassAlias}" Margin="15,5" Height="auto" Width="auto" VerticalAlignment="Center" TextAlignment="Center" HorizontalAlignment="Left" Foreground="White" FontWeight="Normal" FontSize="16"/>
+                                        <TextBlock x:Name="tbCount" Grid.Row="1" Text="{Binding AugmentStatCount}" Margin="15,5" Height="auto" Width="auto" VerticalAlignment="Center" TextAlignment="Center" HorizontalAlignment="Center" Foreground="White" FontWeight="Normal" FontSize="14"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </telerik:RadListBox.ItemTemplate>
+                    </telerik:RadListBox>
+                </Grid>
+            </GroupBox>
+
+            <Border Grid.Row="2" HorizontalAlignment="Stretch" Height="40" BorderThickness="1" VerticalAlignment="Top" Visibility="{Binding ElementName=radNormal, Path=IsChecked, Converter={StaticResource VisibilityBoolConverter}}">
+                <Grid x:Name="gridClass">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="0.06*"/>
+                        <ColumnDefinition Width="0.34*"/>
+                        <ColumnDefinition Width="0.15*"/>
+                        <ColumnDefinition Width="0"/>
+                        <ColumnDefinition Width="0.12*"/>
+                        <ColumnDefinition Width="0.12*"/>
+                        <ColumnDefinition Width="{Binding RotationColumnWidth}"/>
+                        <ColumnDefinition Width="0"/>
+                        <ColumnDefinition Width="0"/>
+                        <ColumnDefinition Width="0"/>
+
+                        <!--<ColumnDefinition Width="0.09*"/>
+                    <ColumnDefinition Width="0.09*"/>
+                    <ColumnDefinition Width="0.09*"/>
+                    <ColumnDefinition Width="0.09*"/>-->
+                    </Grid.ColumnDefinitions>
+                    <CheckBox x:Name="chkSelAll" Grid.Column="0" Content="Select All" FontSize="11" FlowDirection="LeftToRight" Foreground="#FFF33E98" HorizontalAlignment="Left" Height="auto" Width="auto"
+                                            Margin="5,0,0,0" Background="#FFC2DCDD" VerticalAlignment="Center" VerticalContentAlignment="Center" FontWeight="SemiBold" Visibility="{Binding IsVisibleAgmentButton}" Click="chkSelectAll_Click"/>
+                    <TextBlock VerticalAlignment="Center" TextAlignment="Left" Grid.Column="1" Text="Classes" Foreground="#FFF33E98" FontSize="15" Padding="10,0" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="tbRegionCount" VerticalAlignment="Center" TextWrapping="WrapWithOverflow" Width="200" TextAlignment="Center" Grid.Column="2" Text="Region Count" Foreground="#FFF33E98" FontSize="15" Padding="10,0" FontWeight="SemiBold"/>
+                    <TextBlock VerticalAlignment="Center" TextAlignment="Center" Grid.Column="3" Text="Target Count" Foreground="#FFF33E98" FontSize="15" Padding="10,0" FontWeight="SemiBold" Visibility="Collapsed"/>
+                    <TextBlock VerticalAlignment="Center" TextAlignment="Center" Grid.Column="4" Text="Horizontal Flip" Foreground="#FFF33E98" FontSize="15"  FontWeight="SemiBold"/>
+                    <TextBlock VerticalAlignment="Center" TextAlignment="Center" Grid.Column="5" Text="Vertical Flip" Foreground="#FFF33E98" FontSize="15"  FontWeight="SemiBold"/>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Grid.Column="6">
+                        <TextBlock VerticalAlignment="Center" TextAlignment="Center" Text="Rotate" Foreground="#FFF33E98" FontSize="15" FontWeight="SemiBold"/>
+                        <Border Width="30" Height="30" CornerRadius="10"  Visibility="{Binding IsVisibleAgmentButton}">
+                            <Label x:Uid="lblRot" BorderBrush="#FF648CB4" PreviewMouseDown="ButtonAugmentationConfig_PreviewMouseDown" ToolTip="Config Rotation" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Padding="0" Cursor="Hand">
+                                <materialDesign:PackIcon Foreground="#FFEDD460" Kind="Settings" Height="18" Width="18" VerticalAlignment="Center" HorizontalAlignment="Center"></materialDesign:PackIcon>
+                            </Label>
+                        </Border>
+                        <TextBlock VerticalAlignment="Center" TextAlignment="Center" Text="{Binding RotateAngle}" Foreground="White" FontSize="12" Margin="0,0" FontWeight="SemiBold"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Grid.Column="7" Visibility="Collapsed">
+                        <TextBlock VerticalAlignment="Center" TextAlignment="Center" Text="Noise" Foreground="#FFF33E98" FontSize="15" FontWeight="SemiBold"/>
+                        <Border Width="30" Height="30" CornerRadius="10"  Visibility="{Binding IsVisibleAgmentButton}">
+                            <Label x:Uid="lblNoise" BorderBrush="#FF648CB4" PreviewMouseDown="ButtonAugmentationConfig_PreviewMouseDown" ToolTip="Config Noise" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Padding="0" Cursor="Hand">
+                                <materialDesign:PackIcon Foreground="#FFEDD460" Kind="Settings" Height="18" Width="18" VerticalAlignment="Center" HorizontalAlignment="Center"></materialDesign:PackIcon>
+                            </Label>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Grid.Column="8" Visibility="Collapsed">
+                        <TextBlock VerticalAlignment="Center" TextAlignment="Center" Text="Translate" Foreground="#FFF33E98" FontSize="15"  FontWeight="SemiBold"/>
+                        <Border Width="30" Height="30" CornerRadius="10"  Visibility="{Binding IsVisibleAgmentButton}">
+                            <Label x:Uid="lblTrans" BorderBrush="#FF648CB4" PreviewMouseDown="ButtonAugmentationConfig_PreviewMouseDown" ToolTip="Config Trans" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Padding="0" Cursor="Hand">
+                                <materialDesign:PackIcon Foreground="#FFEDD460" Kind="Settings" Height="18" Width="18" VerticalAlignment="Center" HorizontalAlignment="Center"></materialDesign:PackIcon>
+                            </Label>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="-25,0,0,0" Grid.Column="9" Visibility="Collapsed">
+                        <TextBlock VerticalAlignment="Center" TextAlignment="Center" Text="Blur" Foreground="#FFF33E98" FontSize="15"  FontWeight="SemiBold"/>
+                        <Border Width="30" Height="30" CornerRadius="10" Visibility="{Binding IsVisibleAgmentButton}">
+                            <Label x:Uid="lblBlur" BorderBrush="#FF648CB4" PreviewMouseDown="ButtonAugmentationConfig_PreviewMouseDown" ToolTip="Config Blur" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Padding="0" Cursor="Hand">
+                                <materialDesign:PackIcon Foreground="#FFEDD460" Kind="Settings" Height="18" Width="18" VerticalAlignment="Center" HorizontalAlignment="Center"></materialDesign:PackIcon>
+                            </Label>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </Border>
+            <telerik:RadListBox x:Name="ListAugmentationView" Grid.Row="2" Background="Transparent"  BorderBrush="#FF646464" BorderThickness="1" VerticalContentAlignment="Top" Margin="0,45,0,0" Padding="0,10" 
+                                 ScrollViewer.CanContentScroll="True" HorizontalAlignment="Stretch" Visibility="{Binding ElementName=radNormal, Path=IsChecked, Converter={StaticResource VisibilityBoolConverter}}">
+                <telerik:RadListBox.ItemContainerStyle>
+                    <Style TargetType="telerik:RadListBoxItem">
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="{x:Type telerik:RadListBoxItem}">
+                                    <ContentPresenter/>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                </telerik:RadListBox.ItemContainerStyle>
+                <telerik:RadListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Border Name="HighlightBorder" Margin="0" Padding="5" BorderThickness="0" BorderBrush="#FF606060">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="0.06*"/>
+                                    <ColumnDefinition Width="0.34*"/>
+                                    <ColumnDefinition Width="0.15*"/>
+                                    <ColumnDefinition Width="0"/>
+                                    <ColumnDefinition Width="0.12*"/>
+                                    <ColumnDefinition Width="0.12*"/>
+                                    <ColumnDefinition Width="{Binding ColumnWidth}"/>
+                                    <ColumnDefinition Width="0"/>
+                                    <ColumnDefinition Width="0"/>
+                                    <ColumnDefinition Width="0"/>
+                                    <!--<ColumnDefinition Width="0.09*"/>
+                                <ColumnDefinition Width="0.09*"/>
+                                <ColumnDefinition Width="0.09*"/>
+                                <ColumnDefinition Width="0.09*"/>-->
+                                </Grid.ColumnDefinitions>
+
+                                <CheckBox x:Name="chkSelect" Grid.Column="0" FontSize="11" FlowDirection="LeftToRight" Foreground="LightGoldenrodYellow" HorizontalAlignment="Left" Height="auto" Width="auto"
+                                                        Margin="0,0" Background="#FFC2DCDD"  VerticalAlignment="Center" VerticalContentAlignment="Center" IsHitTestVisible="{Binding IsTypeEnable}" Click="chkSelect_Click" IsChecked="False"/>
+                                <!--IsChecked="{Binding IsSelectChecked}"-->
+
+                                <TextBlock x:Name="tbClass" Grid.Column="1" Text="{Binding ClassName}" Margin="5,0" Height="auto" Width="auto" VerticalAlignment="Center" TextAlignment="Left" HorizontalAlignment="Left" Foreground="LightGoldenrodYellow" FontSize="15"/>
+                                <TextBlock x:Name="tbCount" Grid.Column="2" Text="{Binding ClassCount}" Margin="5,0" Height="auto" Width="auto" VerticalAlignment="Center" TextAlignment="Center" HorizontalAlignment="Center" Foreground="LightGoldenrodYellow" FontSize="15"/>
+                                <TextBox x:Name="txtTarget" Grid.Column="3" Text="{Binding TargetCount}" TextAlignment="Center" BorderThickness="1" BorderBrush="Black" Background="White" FontWeight="Regular" Visibility="Collapsed"
+                                                 HorizontalAlignment="Center" Margin="5,0" Padding="5,0" VerticalAlignment="Center" Width="50" IsEnabled="{Binding IsTypeEnable}" PreviewTextInput ="txtTarget_PreviewTextInput" PreviewKeyUp="txtTarget_PreviewKeyUp" />
+
+                                <ToggleButton x:Name="toggleHorizontal" Grid.Column="4" Style="{StaticResource MaterialDesignFlatToggleButton}" Height="20" Width="20" Cursor="Hand" HorizontalAlignment="Center" IsEnabled="{Binding IsTypeEnable}" IsChecked="{Binding IsHFlipSelected, Mode=TwoWay}">
+                                    <ToggleButton.Background>
+                                        <RadialGradientBrush>
+                                            <GradientStop Color="#FF0B5A14" Offset="0"/>
+                                            <GradientStop Color="#FF19D32F" Offset="1"/>
+                                        </RadialGradientBrush>
+                                    </ToggleButton.Background>
+                                    <materialDesign:PackIcon Kind="CheckCircle" Height="18" Width="18"></materialDesign:PackIcon>
+                                </ToggleButton>
+
+                                <ToggleButton x:Name="toggleVertical" Grid.Column="5" Style="{StaticResource MaterialDesignFlatToggleButton}" Height="20" Width="20" Cursor="Hand" HorizontalAlignment="Center" IsEnabled="{Binding IsTypeEnable}" IsChecked="{Binding IsVFlipSelected, Mode=TwoWay}">
+                                    <ToggleButton.Background>
+                                        <RadialGradientBrush>
+                                            <GradientStop Color="#FF0B5A14" Offset="0"/>
+                                            <GradientStop Color="#FF19D32F" Offset="1"/>
+                                        </RadialGradientBrush>
+                                    </ToggleButton.Background>
+                                    <materialDesign:PackIcon Kind="CheckCircle" Height="18" Width="18"></materialDesign:PackIcon>
+                                </ToggleButton>
+                                <ToggleButton x:Name="toggleRot" Grid.Column="6" Style="{StaticResource MaterialDesignFlatToggleButton}" Height="20" Width="20" Cursor="Hand" HorizontalAlignment="Center" IsEnabled="{Binding IsTypeEnable}" IsChecked="{Binding IsRotSelected, Mode=TwoWay}" Visibility="{Binding ColumnVisibility}">
+                                    <ToggleButton.Background>
+                                        <RadialGradientBrush>
+                                            <GradientStop Color="#FF0B5A14" Offset="0"/>
+                                            <GradientStop Color="#FF19D32F" Offset="1"/>
+                                        </RadialGradientBrush>
+                                    </ToggleButton.Background>
+                                    <materialDesign:PackIcon Kind="CheckCircle" Height="18" Width="18"></materialDesign:PackIcon>
+                                </ToggleButton>
+
+                                <ToggleButton x:Name="toggleNoise" Grid.Column="7" Style="{StaticResource MaterialDesignFlatToggleButton}" Height="20" Width="20" Cursor="Hand" HorizontalAlignment="Center" IsEnabled="{Binding IsTypeEnable}" IsChecked="{Binding IsNoiseSelected, Mode=TwoWay}" Visibility="Collapsed">
+                                    <ToggleButton.Background>
+                                        <RadialGradientBrush>
+                                            <GradientStop Color="#FF0B5A14" Offset="0"/>
+                                            <GradientStop Color="#FF19D32F" Offset="1"/>
+                                        </RadialGradientBrush>
+                                    </ToggleButton.Background>
+                                    <materialDesign:PackIcon Kind="CheckCircle" Height="18" Width="18"></materialDesign:PackIcon>
+                                </ToggleButton>
+
+                                <!--<ToggleButton x:Name="toggleRot" Grid.Column="7" Style="{StaticResource MaterialDesignFlatToggleButton}" Height="20" Width="20" Cursor="Hand" HorizontalAlignment="Center" IsEnabled="{Binding IsTypeEnable}" IsChecked="{Binding IsRotSelected, Mode=TwoWay}">-->
+
+                                <ToggleButton x:Name="toggleTrans" Grid.Column="8" Style="{StaticResource MaterialDesignFlatToggleButton}" Height="20" Width="20" Cursor="Hand" HorizontalAlignment="Center" IsEnabled="{Binding IsTypeEnable}" IsChecked="{Binding IsTransSelected, Mode=TwoWay}" Visibility="Collapsed">
+                                    <ToggleButton.Background>
+                                        <RadialGradientBrush>
+                                            <GradientStop Color="#FF0B5A14" Offset="0"/>
+                                            <GradientStop Color="#FF19D32F" Offset="1"/>
+                                        </RadialGradientBrush>
+                                    </ToggleButton.Background>
+                                    <materialDesign:PackIcon Kind="CheckCircle" Height="18" Width="18"></materialDesign:PackIcon>
+                                </ToggleButton>
+
+                                <ToggleButton x:Name="toggleBlur" Grid.Column="9" Style="{StaticResource MaterialDesignFlatToggleButton}" Height="20" Width="20" Cursor="Hand" HorizontalAlignment="Center" IsEnabled="{Binding IsTypeEnable}" IsChecked="{Binding IsBlurSelected, Mode=TwoWay}" Visibility="Collapsed">
+                                    <ToggleButton.Background>
+                                        <RadialGradientBrush>
+                                            <GradientStop Color="#FF0B5A14" Offset="0"/>
+                                            <GradientStop Color="#FF19D32F" Offset="1"/>
+                                        </RadialGradientBrush>
+                                    </ToggleButton.Background>
+                                    <materialDesign:PackIcon Kind="CheckCircle" Height="18" Width="18"></materialDesign:PackIcon>
+                                </ToggleButton>
+                            </Grid>
+                        </Border>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=telerik:RadListBoxItem}}" Value="True">
+                                <Setter TargetName="HighlightBorder" Property="Background" Value="#3060A0FF" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ElementName=toggleHorizontal, Path=IsChecked}" Value="True">
+                                <Setter TargetName="tbClass" Property="FontWeight" Value="DemiBold"/>
+                                <Setter TargetName="tbClass" Property="FontSize" Value="15"/>
+                                <Setter TargetName="tbClass" Property="Foreground" Value="#FFDDD777"/>
+                                <Setter TargetName="chkSelect" Property="IsChecked" Value="True"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ElementName=toggleVertical, Path=IsChecked}" Value="True">
+                                <Setter TargetName="tbClass" Property="FontWeight" Value="DemiBold"/>
+                                <Setter TargetName="tbClass" Property="FontSize" Value="15"/>
+                                <Setter TargetName="tbClass" Property="Foreground" Value="#FFDDD777"/>
+                                <Setter TargetName="chkSelect" Property="IsChecked" Value="True"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ElementName=toggleNoise, Path=IsChecked}" Value="True">
+                                <Setter TargetName="tbClass" Property="FontWeight" Value="DemiBold"/>
+                                <Setter TargetName="tbClass" Property="FontSize" Value="15"/>
+                                <Setter TargetName="tbClass" Property="Foreground" Value="#FFDDD777"/>
+                                <Setter TargetName="chkSelect" Property="IsChecked" Value="True"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ElementName=toggleRot, Path=IsChecked}" Value="True">
+                                <Setter TargetName="tbClass" Property="FontWeight" Value="DemiBold"/>
+                                <Setter TargetName="tbClass" Property="FontSize" Value="15"/>
+                                <Setter TargetName="tbClass" Property="Foreground" Value="#FFDDD777"/>
+                                <Setter TargetName="chkSelect" Property="IsChecked" Value="True"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ElementName=toggleTrans, Path=IsChecked}" Value="True">
+                                <Setter TargetName="tbClass" Property="FontWeight" Value="DemiBold"/>
+                                <Setter TargetName="tbClass" Property="FontSize" Value="15"/>
+                                <Setter TargetName="tbClass" Property="Foreground" Value="#FFDDD777"/>
+                                <Setter TargetName="chkSelect" Property="IsChecked" Value="True"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding ElementName=toggleBlur, Path=IsChecked}" Value="True">
+                                <Setter TargetName="tbClass" Property="FontWeight" Value="DemiBold"/>
+                                <Setter TargetName="tbClass" Property="FontSize" Value="15"/>
+                                <Setter TargetName="tbClass" Property="Foreground" Value="#FFDDD777"/>
+                                <Setter TargetName="chkSelect" Property="IsChecked" Value="True"/>
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </telerik:RadListBox.ItemTemplate>
+            </telerik:RadListBox>
+
+            <Border Grid.Row="2" HorizontalAlignment="Stretch" BorderThickness="1" BorderBrush="#FF646464"  VerticalAlignment="Top"
+                                Visibility="{Binding ElementName=radRandom, Path=IsChecked, Converter={StaticResource VisibilityBoolConverter}}" Margin="5,0" CornerRadius="0.2">
+                <StackPanel Orientation="Vertical" VerticalAlignment="Top">
+                    <Grid Margin="0,5">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="0.22*"/>
+                            <ColumnDefinition Width="0.13*"/>
+                            <ColumnDefinition Width="0.13*"/>
+                            <ColumnDefinition Width="0.13*"/>
+                            <ColumnDefinition Width="0.13*"/>
+                            <ColumnDefinition Width="0.13*"/>
+                            <ColumnDefinition Width="0.13*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock VerticalAlignment="Center" TextAlignment="Center" Grid.Column="0" Text="Batch Size" Foreground="#FFF33E98" FontSize="15" Padding="10,0" FontWeight="SemiBold"/>
+                        <TextBlock VerticalAlignment="Center" TextAlignment="Center" Grid.Column="1" Text="Horizontal Flip" Foreground="#FFF33E98" FontSize="15"  FontWeight="SemiBold"/>
+                        <TextBlock VerticalAlignment="Center" TextAlignment="Center" Grid.Column="2" Text="Vertical Flip" Foreground="#FFF33E98" FontSize="15"  FontWeight="SemiBold"/>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Grid.Column="3">
+                            <TextBlock VerticalAlignment="Center" TextAlignment="Center" Text="Noise" Foreground="#FFF33E98" FontSize="15" FontWeight="SemiBold"/>
+                            <Border Width="30" Height="30" CornerRadius="10"  Visibility="{Binding IsVisibleAgmentButton}">
+                                <Label x:Uid="lblNoise" BorderBrush="#FF648CB4" PreviewMouseDown="ButtonAugmentationConfig_PreviewMouseDown" ToolTip="Config Noise" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Padding="0" Cursor="Hand">
+                                    <materialDesign:PackIcon Foreground="#FFEDD460" Kind="Settings" Height="18" Width="18" VerticalAlignment="Center" HorizontalAlignment="Center"></materialDesign:PackIcon>
+                                </Label>
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Grid.Column="4">
+                            <TextBlock VerticalAlignment="Center" TextAlignment="Center" Text="Rotate" Foreground="#FFF33E98" FontSize="15" FontWeight="SemiBold"/>
+                            <Border Width="30" Height="30" CornerRadius="10"  Visibility="{Binding IsVisibleAgmentButton}" IsEnabled="False">
+                                <Label x:Uid="lblRot" BorderBrush="#FF648CB4" PreviewMouseDown="ButtonAugmentationConfig_PreviewMouseDown" ToolTip="Config Rotation" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Padding="0" Cursor="Hand">
+                                    <materialDesign:PackIcon Foreground="#FFEDD460" Kind="Settings" Height="18" Width="18" VerticalAlignment="Center" HorizontalAlignment="Center"></materialDesign:PackIcon>
+                                </Label>
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Grid.Column="5">
+                            <TextBlock VerticalAlignment="Center" TextAlignment="Center" Text="Translate" Foreground="#FFF33E98" FontSize="15"  FontWeight="SemiBold"/>
+                            <Border Width="30" Height="30" CornerRadius="10"  Visibility="{Binding IsVisibleAgmentButton}">
+                                <Label x:Uid="lblTrans" BorderBrush="#FF648CB4" PreviewMouseDown="ButtonAugmentationConfig_PreviewMouseDown" ToolTip="Config Trans" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Padding="0" Cursor="Hand">
+                                    <materialDesign:PackIcon Foreground="#FFEDD460" Kind="Settings" Height="18" Width="18" VerticalAlignment="Center" HorizontalAlignment="Center"></materialDesign:PackIcon>
+                                </Label>
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Grid.Column="6">
+                            <TextBlock VerticalAlignment="Center" TextAlignment="Center" Text="Blur" Foreground="#FFF33E98" FontSize="15"  FontWeight="SemiBold"/>
+                            <Border Width="30" Height="30" CornerRadius="10" Visibility="{Binding IsVisibleAgmentButton}">
+                                <Label x:Uid="lblBlur" BorderBrush="#FF648CB4" PreviewMouseDown="ButtonAugmentationConfig_PreviewMouseDown" ToolTip="Config Blur" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Padding="0" Cursor="Hand">
+                                    <materialDesign:PackIcon Foreground="#FFEDD460" Kind="Settings" Height="18" Width="18" VerticalAlignment="Center" HorizontalAlignment="Center"></materialDesign:PackIcon>
+                                </Label>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Margin="0,5">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="0.22*"/>
+                            <ColumnDefinition Width="0.13*"/>
+                            <ColumnDefinition Width="0.13*"/>
+                            <ColumnDefinition Width="0.13*"/>
+                            <ColumnDefinition Width="0.13*"/>
+                            <ColumnDefinition Width="0.13*"/>
+                            <ColumnDefinition Width="0.13*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBox x:Name="txtBatchSize" Grid.Column="0" TextAlignment="Center" BorderThickness="1" BorderBrush="Black" Background="White" FontWeight="Regular" IsEnabled="{Binding ElementName=btnAugment, Path=Visibility, Converter={StaticResource BoolToVisibilityConverter}}"
+                                        HorizontalAlignment="Center" Margin="5,0" Padding="5,0" VerticalAlignment="Center" FontSize="14" Height="auto" Width="75" PreviewTextInput ="txtBatchSize_PreviewTextInput"/>
+
+                        <ToggleButton x:Name="tgAH" Grid.Column="1" Style="{StaticResource MaterialDesignFlatToggleButton}" IsEnabled="{Binding ElementName=btnAugment, Path=Visibility, Converter={StaticResource BoolToVisibilityConverter}}" Height="20" Width="20" Cursor="Hand" HorizontalAlignment="Center">
+                            <ToggleButton.Background>
+                                <RadialGradientBrush>
+                                    <GradientStop Color="#FF0B5A14" Offset="0"/>
+                                    <GradientStop Color="#FF19D32F" Offset="1"/>
+                                </RadialGradientBrush>
+                            </ToggleButton.Background>
+                            <materialDesign:PackIcon Kind="CheckCircle" Height="18" Width="18"></materialDesign:PackIcon>
+                        </ToggleButton>
+
+                        <ToggleButton x:Name="tgAV" Grid.Column="2" Style="{StaticResource MaterialDesignFlatToggleButton}" IsEnabled="{Binding ElementName=btnAugment, Path=Visibility, Converter={StaticResource BoolToVisibilityConverter}}" Height="20" Width="20" Cursor="Hand" HorizontalAlignment="Center">
+                            <ToggleButton.Background>
+                                <RadialGradientBrush>
+                                    <GradientStop Color="#FF0B5A14" Offset="0"/>
+                                    <GradientStop Color="#FF19D32F" Offset="1"/>
+                                </RadialGradientBrush>
+                            </ToggleButton.Background>
+                            <materialDesign:PackIcon Kind="CheckCircle" Height="18" Width="18"></materialDesign:PackIcon>
+                        </ToggleButton>
+
+                        <ToggleButton x:Name="tgAN" Grid.Column="3" Style="{StaticResource MaterialDesignFlatToggleButton}" IsEnabled="{Binding ElementName=btnAugment, Path=Visibility, Converter={StaticResource BoolToVisibilityConverter}}" Height="20" Width="20" Cursor="Hand" HorizontalAlignment="Center">
+                            <ToggleButton.Background>
+                                <RadialGradientBrush>
+                                    <GradientStop Color="#FF0B5A14" Offset="0"/>
+                                    <GradientStop Color="#FF19D32F" Offset="1"/>
+                                </RadialGradientBrush>
+                            </ToggleButton.Background>
+                            <materialDesign:PackIcon Kind="CheckCircle" Height="18" Width="18"></materialDesign:PackIcon>
+                        </ToggleButton>
+
+                        <ToggleButton x:Name="tgAR" Grid.Column="4" Style="{StaticResource MaterialDesignFlatToggleButton}" Height="20" Width="20" Cursor="Hand" HorizontalAlignment="Center" IsEnabled="False" IsChecked="False">
+                            <ToggleButton.Background>
+                                <RadialGradientBrush>
+                                    <GradientStop Color="#FF0B5A14" Offset="0"/>
+                                    <GradientStop Color="#FF19D32F" Offset="1"/>
+                                </RadialGradientBrush>
+                            </ToggleButton.Background>
+                            <materialDesign:PackIcon Kind="CheckCircle" Height="18" Width="18"></materialDesign:PackIcon>
+                        </ToggleButton>
+
+                        <ToggleButton x:Name="tgAT" Grid.Column="5" Style="{StaticResource MaterialDesignFlatToggleButton}" IsEnabled="{Binding ElementName=btnAugment, Path=Visibility, Converter={StaticResource BoolToVisibilityConverter}}" Height="20" Width="20" Cursor="Hand" HorizontalAlignment="Center">
+                            <ToggleButton.Background>
+                                <RadialGradientBrush>
+                                    <GradientStop Color="#FF0B5A14" Offset="0"/>
+                                    <GradientStop Color="#FF19D32F" Offset="1"/>
+                                </RadialGradientBrush>
+                            </ToggleButton.Background>
+                            <materialDesign:PackIcon Kind="CheckCircle" Height="18" Width="18"></materialDesign:PackIcon>
+                        </ToggleButton>
+
+                        <ToggleButton x:Name="tgAB" Grid.Column="6" Style="{StaticResource MaterialDesignFlatToggleButton}" IsEnabled="{Binding ElementName=btnAugment, Path=Visibility, Converter={StaticResource BoolToVisibilityConverter}}" Height="20" Width="20" Cursor="Hand" HorizontalAlignment="Center">
+                            <ToggleButton.Background>
+                                <RadialGradientBrush>
+                                    <GradientStop Color="#FF0B5A14" Offset="0"/>
+                                    <GradientStop Color="#FF19D32F" Offset="1"/>
+                                </RadialGradientBrush>
+                            </ToggleButton.Background>
+                            <materialDesign:PackIcon Kind="CheckCircle" Height="18" Width="18"></materialDesign:PackIcon>
+                        </ToggleButton>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="btnAugment" BorderThickness="0" Height="40" Visibility="{Binding IsVisibleAgmentButton}" Width="50" Background="Transparent"
+                        Margin="0,0,5,0" HorizontalAlignment="Right" Cursor="Hand" PreviewMouseDown="btnAugment_PreviewMouseDown">
+                    <Button.ToolTip>
+                        <ToolTip>
+                            <StackPanel>
+                                <TextBlock FontStyle="Italic"><Run Text="Proceed"/></TextBlock>
+                            </StackPanel>
+                        </ToolTip>
+                    </Button.ToolTip>
+                    <materialDesign:PackIcon Foreground="HotPink" Kind="Send" Height="40" Width="50"/>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </telerik:RadBusyIndicator>
+</telerik:RadWindow>

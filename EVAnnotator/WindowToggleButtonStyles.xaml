@@ -1,0 +1,207 @@
+﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:telerik="http://schemas.telerik.com/2008/xaml/presentation">
+
+    <Style x:Key="RadToggleButtonStyle1" TargetType="telerik:RadToggleButton">
+        <Setter Property="HorizontalContentAlignment" Value="Right"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8 1"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Background" Value="#484848"/>
+        <Setter Property="BorderBrush" Value="#484848"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="telerik:RadToggleButton">
+                    <Grid SnapsToDevicePixels="True">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CheckStates">
+                                <VisualStateGroup.Transitions>
+                                    <VisualTransition From="Unchecked"  To="Checked">
+                                        <Storyboard>
+                                            <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(Ellipse.RenderTransform).(TranslateTransform.X)" Storyboard.TargetName="Thumb">
+                                                <SplineDoubleKeyFrame KeyTime="0" Value="0"/>
+                                                <SplineDoubleKeyFrame KeyTime="0:0:0.5" Value="60" KeySpline="0,0.5,0.5,1"/>
+                                            </DoubleAnimationUsingKeyFrames>
+                                        </Storyboard>
+                                    </VisualTransition>
+                                    <VisualTransition From="Checked"  To="UnChecked">
+                                        <Storyboard>
+                                            <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(Ellipse.RenderTransform).(TranslateTransform.X)" Storyboard.TargetName="Thumb">
+                                                <SplineDoubleKeyFrame KeyTime="0" Value="60"/>
+                                                <SplineDoubleKeyFrame KeyTime="0:0:0.4" Value="0" KeySpline="0, 0.6, 0.6, 1"/>
+                                            </DoubleAnimationUsingKeyFrames>
+                                        </Storyboard>
+                                    </VisualTransition>
+                                </VisualStateGroup.Transitions>
+                                <VisualState x:Name="Checked">
+                                    <Storyboard>
+                                        <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(Ellipse.RenderTransform).(TranslateTransform.X)" Storyboard.TargetName="Thumb">
+                                            <SplineDoubleKeyFrame KeyTime="0" Value="60"/>
+                                            <SplineDoubleKeyFrame KeyTime="0:0:0.5" Value="60" KeySpline="0,0.5,0.5,1"/>
+                                        </DoubleAnimationUsingKeyFrames>
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Unchecked">
+                                    <Storyboard>
+                                        <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(Ellipse.RenderTransform).(TranslateTransform.X)" Storyboard.TargetName="Thumb">
+                                            <SplineDoubleKeyFrame KeyTime="0" Value="0"/>
+                                            <SplineDoubleKeyFrame KeyTime="0:0:0.4" Value="0" KeySpline="0, 0.6, 0.6, 1"/>
+                                        </DoubleAnimationUsingKeyFrames>
+                                    </Storyboard>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                        <Grid>
+                            <Rectangle x:Name="Track" Fill="{TemplateBinding Background}" Stroke="{TemplateBinding BorderBrush}" />
+
+                            <Rectangle x:Name="Thumb" Fill="{telerik:VisualStudio2013Resource ResourceKey=AccentBrush}" 
+                                         HorizontalAlignment="Left" StrokeThickness="1" SnapsToDevicePixels="True" Margin="0 0 0 1"
+                                         Stroke="{telerik:VisualStudio2013Resource ResourceKey=AccentBrush}" Width="12" RenderTransformOrigin="0.5,0.5">
+                                <Rectangle.RenderTransform>
+                                    <TranslateTransform X="0" Y="0" />
+                                </Rectangle.RenderTransform>
+                                <Rectangle.Effect>
+                                    <DropShadowEffect BlurRadius="5" ShadowDepth="1" Direction="270" Color="#CCCCCC"/>
+                                </Rectangle.Effect>
+                            </Rectangle>
+                        </Grid>
+
+                        <ContentPresenter x:Name="Content"
+                                Margin="{TemplateBinding Padding}"
+                                Content="{TemplateBinding Content}"
+                                ContentTemplate="{TemplateBinding ContentTemplate}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                ContentTemplateSelector="{TemplateBinding ContentTemplateSelector}"
+                                ContentStringFormat="{TemplateBinding ContentStringFormat}"
+                                RecognizesAccessKey="True"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Thumb" Property="Fill" Value="{telerik:VisualStudio2013Resource ResourceKey=AccentBrush}" />
+                            <Setter TargetName="Thumb" Property="Stroke" Value="{telerik:VisualStudio2013Resource ResourceKey=AccentBrush}" />
+
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Thumb" Property="Fill" Value="{telerik:VisualStudio2013Resource ResourceKey=AccentBrush}" />
+                            <Setter TargetName="Thumb" Property="Stroke" Value="{telerik:VisualStudio2013Resource ResourceKey=AccentBrush}" />
+
+                            <Setter TargetName="Track" Property="Fill" Value="#484848" />
+                            <Setter TargetName="Track" Property="Stroke" Value="#484848" />
+
+                            <Setter TargetName="Content" Property="HorizontalAlignment" Value="Left" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="RadToggleButtonStyle2" TargetType="telerik:RadToggleButton">
+        <Setter Property="HorizontalContentAlignment" Value="Right"/>
+        <Setter Property="BorderThickness" Value="1"/>
+        <Setter Property="Padding" Value="8 1"/>
+        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+        <Setter Property="FontSize" Value="12"/>
+        <Setter Property="FontWeight" Value="Bold"/>
+        <Setter Property="FontFamily" Value="Segoe UI"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Foreground" Value="White"/>
+        <Setter Property="Background" Value="#484848"/>
+        <!--<Setter Property="BorderBrush" Value="#484848"/>-->
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="telerik:RadToggleButton">
+                    <Grid SnapsToDevicePixels="True">
+                        <VisualStateManager.VisualStateGroups>
+                            <VisualStateGroup x:Name="CheckStates">
+                                <VisualStateGroup.Transitions>
+                                    <VisualTransition From="Unchecked"  To="Checked">
+                                        <Storyboard>
+                                            <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(Ellipse.RenderTransform).(TranslateTransform.X)" Storyboard.TargetName="Thumb">
+                                                <SplineDoubleKeyFrame KeyTime="0" Value="0"/>
+                                                <SplineDoubleKeyFrame KeyTime="0:0:0.5" Value="90" KeySpline="0,0.5,0.5,1"/>
+                                            </DoubleAnimationUsingKeyFrames>
+                                        </Storyboard>
+                                    </VisualTransition>
+                                    <VisualTransition From="Checked"  To="UnChecked">
+                                        <Storyboard>
+                                            <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(Ellipse.RenderTransform).(TranslateTransform.X)" Storyboard.TargetName="Thumb">
+                                                <SplineDoubleKeyFrame KeyTime="0" Value="90"/>
+                                                <SplineDoubleKeyFrame KeyTime="0:0:0.4" Value="0" KeySpline="0, 0.6, 0.6, 1"/>
+                                            </DoubleAnimationUsingKeyFrames>
+                                        </Storyboard>
+                                    </VisualTransition>
+                                </VisualStateGroup.Transitions>
+                                <VisualState x:Name="Checked">
+                                    <Storyboard>
+                                        <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(Ellipse.RenderTransform).(TranslateTransform.X)" Storyboard.TargetName="Thumb">
+                                            <SplineDoubleKeyFrame KeyTime="0" Value="90"/>
+                                            <SplineDoubleKeyFrame KeyTime="0:0:0.5" Value="90" KeySpline="0,0.5,0.5,1"/>
+                                        </DoubleAnimationUsingKeyFrames>
+                                    </Storyboard>
+                                </VisualState>
+                                <VisualState x:Name="Unchecked">
+                                    <Storyboard>
+                                        <DoubleAnimationUsingKeyFrames Storyboard.TargetProperty="(Ellipse.RenderTransform).(TranslateTransform.X)" Storyboard.TargetName="Thumb">
+                                            <SplineDoubleKeyFrame KeyTime="0" Value="0"/>
+                                            <SplineDoubleKeyFrame KeyTime="0:0:0.4" Value="0" KeySpline="0, 0.6, 0.6, 1"/>
+                                        </DoubleAnimationUsingKeyFrames>
+                                    </Storyboard>
+                                </VisualState>
+                            </VisualStateGroup>
+                        </VisualStateManager.VisualStateGroups>
+                        <Grid>
+                            <Rectangle x:Name="Track" Fill="{TemplateBinding Background}" Stroke="{TemplateBinding BorderBrush}" />
+
+                            <Rectangle x:Name="Thumb" Fill="{telerik:VisualStudio2013Resource ResourceKey=AccentBrush}" 
+                                         HorizontalAlignment="Left" StrokeThickness="1" SnapsToDevicePixels="True" Margin="0 0 0 1"
+                                         Stroke="{telerik:VisualStudio2013Resource ResourceKey=AccentBrush}" Width="12" RenderTransformOrigin="0.5,0.5">
+                                <Rectangle.RenderTransform>
+                                    <TranslateTransform X="0" Y="0" />
+                                </Rectangle.RenderTransform>
+                                <Rectangle.Effect>
+                                    <DropShadowEffect BlurRadius="5" ShadowDepth="1" Direction="270" Color="#CCCCCC"/>
+                                </Rectangle.Effect>
+                            </Rectangle>
+                        </Grid>
+
+                        <ContentPresenter x:Name="Content"
+                                Margin="{TemplateBinding Padding}"
+                                Content="{TemplateBinding Content}"
+                                ContentTemplate="{TemplateBinding ContentTemplate}"
+                                VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                ContentTemplateSelector="{TemplateBinding ContentTemplateSelector}"
+                                ContentStringFormat="{TemplateBinding ContentStringFormat}"
+                                RecognizesAccessKey="True"/>
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Thumb" Property="Fill" Value="{telerik:VisualStudio2013Resource ResourceKey=AccentBrush}" />
+                            <Setter TargetName="Thumb" Property="Stroke" Value="{telerik:VisualStudio2013Resource ResourceKey=AccentBrush}" />
+
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Thumb" Property="Fill" Value="{telerik:VisualStudio2013Resource ResourceKey=AccentBrush}" />
+                            <Setter TargetName="Thumb" Property="Stroke" Value="{telerik:VisualStudio2013Resource ResourceKey=AccentBrush}" />
+
+                            <Setter TargetName="Track" Property="Fill" Value="#484848" />
+                            <Setter TargetName="Track" Property="Stroke" Value="#484848" />
+
+                            <Setter TargetName="Content" Property="HorizontalAlignment" Value="Left" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>

@@ -1,0 +1,225 @@
+﻿<Window x:Class="GenieSupervisor.DuplicateImageStats"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:GenieSupervisor"
+        xmlns:telerik="http://schemas.telerik.com/2008/xaml/presentation"        
+        mc:Ignorable="d"
+        TextElement.FontWeight="Regular"
+        TextElement.FontSize="12"
+        TextElement.FontFamily="Segoe UI"
+        Left="250" Top="100" WindowStyle="None" BorderThickness="1" MinWidth="750" Width="auto" MaxWidth="1100" MinHeight="500" Height="auto" MaxHeight="1200" BorderBrush="Black"
+        WindowStartupLocation="Manual" ResizeMode="NoResize" ShowInTaskbar="False" SizeToContent ="Width" Loaded="Window_Loaded" MouseDown="Window_MouseDown">
+    <Grid Background="#FF686262">
+        <Grid.Resources>
+            <local:WidthConverter x:Key="lvAutoWidth"></local:WidthConverter>
+        </Grid.Resources>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="30"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <StackPanel Orientation="Horizontal" Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Stretch" Height="30">
+            <Label Content="Duplicate Image Statistics"  HorizontalAlignment="Left" FontSize="15" Foreground="White" FontStyle="Italic" Margin="10,0,0,0"/>
+        </StackPanel>
+        <Border Cursor="Hand" Height="30" Width="30" Visibility="Collapsed" CornerRadius="50" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="2,0,30,0">
+            <Border.Background>
+                <RadialGradientBrush>
+                    <GradientStop Color="#FF686262" Offset="0.968"/>
+                    <GradientStop Color="Red"/>
+                </RadialGradientBrush>
+            </Border.Background>
+            <TextBlock TextWrapping="Wrap" Height="30" Width="40" FontSize="18" TextAlignment="Center" Foreground="White" FontWeight="Bold" VerticalAlignment="Center" ToolTip="Minimize" HorizontalAlignment="Center" Text="-" PreviewMouseLeftButtonDown="ButtonMinimize_Click"></TextBlock>
+        </Border>
+        
+        <Border Cursor="Hand" Height="30" Width="30" CornerRadius="50" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="2,0">
+            <Border.Background>
+                <RadialGradientBrush>
+                    <GradientStop Color="#FF686262" Offset="0.968"/>
+                    <GradientStop Color="Red"/>
+                </RadialGradientBrush>
+            </Border.Background>
+            <TextBlock TextWrapping="Wrap" Height="30" Width="30" FontSize="18" TextAlignment="Center" Foreground="White" FontWeight="Bold" VerticalAlignment="Center" ToolTip="Exit" HorizontalAlignment="Center" Text="x" PreviewMouseLeftButtonDown="ButtonSaveClose_Click"></TextBlock>
+        </Border>
+        <Grid x:Name="gridMain" Grid.Row="1" Background="#FF4C3F3F">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="auto"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="25" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="30" />
+            </Grid.RowDefinitions>
+            <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" HorizontalAlignment="Left" Height="30">
+                <Label Content="Parent Folder : "  HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="14" Foreground="White" FontWeight="SemiBold" Margin="5,0,0,0"/>
+                <TextBlock x:Name="lblParentFolder" Text="folder" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="12" Foreground="Wheat" FontWeight="Normal" Margin="5,0,0,0"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Height="30" Margin="15,0,10,0">
+                <Label Content="Duplicate Images : "  HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="14" Foreground="White" FontWeight="SemiBold" Margin="0" Padding="10,0,5,0"/>
+                <TextBlock x:Name="lblDupImage" Text="{Binding DuplicateCount, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"  HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="14" Foreground="Wheat" FontWeight="Normal" Margin="0" Padding="5,0,5,0"/>
+            </StackPanel>
+            <telerik:RadTabControl x:Name="tabDuplicateStat" TabStripPlacement="Left" Grid.Row="1" telerik:StyleManager.Theme="Expression_Dark" Grid.ColumnSpan="2" MinWidth="750" Width="auto" Background="Transparent" BorderBrush="#FFCEC4C4" 
+                                   Margin="0,0,0,0" SelectionChanged="TabControl_SelectionChanged" Align="Right" BackgroundVisibility="Collapsed">
+                <telerik:RadTabControl.Resources>
+                    <Style TargetType="{x:Type telerik:RadTabItem}">
+                        <Setter Property="Background" Value="#FF948D8D"/>
+                        <Setter Property="BorderBrush" Value="#FF282828"/>                        
+                    </Style>
+                </telerik:RadTabControl.Resources>
+                <telerik:RadTabItem  Margin="0" Width="80" Height="30" Padding="0">
+                    <telerik:RadTabItem.Header>
+                        <DockPanel >
+                            <Label Content="Folder List" HorizontalContentAlignment="Center" Background="Transparent" Foreground="Brown" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14"/>
+                        </DockPanel>
+                    </telerik:RadTabItem.Header>
+
+                    <ListView x:Name="lvFolderList" Margin="0" Width="auto" HorizontalContentAlignment="Center" Foreground="Black" FontWeight="Regular" FontSize="13" 
+                                ScrollViewer.HorizontalScrollBarVisibility="Auto" ItemsSource="{Binding}" Background="Transparent">
+                        <ListView.Resources>
+                            <DataTemplate x:Key="DataTemplate">
+                                <Border BorderBrush="Black" BorderThickness="0,0,0,0"/>
+                            </DataTemplate>
+                        </ListView.Resources>
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Left" />
+                                <!--<Setter Property="BorderBrush" Value="white"></Setter>
+                                <Setter Property="BorderThickness" Value="0,0,0,1"></Setter>-->
+                                <Style.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter Property="Background" Value="Gray"/>
+                                    </Trigger>
+                                    <Trigger Property="IsFocused" Value="True">
+                                        <Setter Property="Background" Value="#4F808080"/>
+                                    </Trigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ListView.ItemContainerStyle>
+
+                        <ListView.View>
+                            <GridView>
+                                <GridView.ColumnHeaderContainerStyle>
+                                    <Style TargetType="{x:Type GridViewColumnHeader}">
+                                        <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                        <Setter Property="Background" Value="#FF948F88"/>
+                                        <Setter Property="FontWeight" Value="Bold"/>
+                                        <Setter Property="Padding" Value="20,0"/>
+                                    </Style>
+                                </GridView.ColumnHeaderContainerStyle>
+
+                                <!--<GridViewColumn Width="{Binding ElementName=gridMain, Path=Width, Converter={StaticResource lvAutoWidth}}" Header="Folder Name">-->
+                                <GridViewColumn Width="{Binding GetColumnWidth}" Header="Folder Name">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding ImageFolderName}" Foreground="AntiqueWhite" TextAlignment="Left"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="No. of Images" Width="130">
+                                    <!--Width="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type ListView}}, Converter={StaticResource lvAutoWidth}}">-->
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding ImageCount}" Foreground="AntiqueWhite" TextAlignment="Center" Padding="20,0"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <!--<GridViewColumn Header="No. of Duplicate Images"  Width="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType={x:Type ListView}}, Converter={StaticResource lvAutoWidth}}">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding DuplicateImageCount}" TextWrapping="Wrap"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>-->
+                            </GridView>
+                        </ListView.View>
+                    </ListView>                    
+                </telerik:RadTabItem>
+
+                <telerik:RadTabItem  Margin="0" Width="130" Height="30" Padding="0">
+                    <telerik:RadTabItem.Header>
+                        <DockPanel >
+                            <Label Content="Duplicate Images" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Background="Transparent" Foreground="Brown" FontSize="14"/>
+                        </DockPanel>
+                    </telerik:RadTabItem.Header>
+                    <Grid Background="Transparent" MinWidth="750">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="2*"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <telerik:GroupBox Grid.Row="0" Header="Duplicate Images" Margin="5,5" Foreground="White" FontSize="12" FontFamily="Tahoma" BorderBrush="White" BorderThickness="1">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <StackPanel Orientation="Horizontal" Visibility="Visible" Grid.Row="0" VerticalAlignment="Top" HorizontalAlignment="Right" Height="25">
+                                    <telerik:RadButton x:Name="btnDeleteAllDup" CornerRadius="10" Content="Delete All Duplicates" HorizontalAlignment="Center" BorderBrush="Black" Background="#FFE7E7E0" Foreground="Brown" FontSize="12" VerticalContentAlignment="Center" Width="auto" 
+                                        telerik:StyleManager.Theme="Expression_Dark" Height="25" Padding="15,0" Click="btnDeleteAllDup_Click"/>
+                                </StackPanel>
+                                <telerik:RadListBox x:Name="listDupImageList" Grid.Row="1" telerik:StyleManager.Theme="Fluent" BorderBrush="White" BorderThickness="0,0.5,0,0" 
+                                                    Background="Transparent" MinWidth="750" MaxWidth="1100" Width="auto" ItemsSource="{Binding }" ScrollViewer.VerticalScrollBarVisibility="Auto" Padding="5,5,0,10" SelectionChanged="listDupImageList_SelectionChanged" >
+                                    <telerik:RadListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid HorizontalAlignment="Left">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="0.9*"/>
+                                                    <ColumnDefinition Width="0.1*"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding DuplicateImageName}" Grid.Column="0" Padding="2,2,10,2" FontSize="11" TextAlignment="Left" Foreground="AntiqueWhite" HorizontalAlignment="Stretch"  VerticalAlignment="Stretch"/>
+                                                <Button x:Name="btnDeleteDup" Grid.Column="1" Content="" Width="20" Height="20" BorderBrush="Transparent" HorizontalAlignment="Right" ToolTip="Delete Duplicates" Click="btnDeleteDuplicate_Click">
+                                                    <Button.Background>
+                                                        <ImageBrush ImageSource="icon/delete_icon.png"/>
+                                                    </Button.Background>
+                                                </Button>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </telerik:RadListBox.ItemTemplate>
+                                    <telerik:RadListBox.ContextMenu>
+                                        <ContextMenu>
+                                            <telerik:RadMenuItem x:Name="menuCopy" Header="Copy" IsCheckable="False" Click="CopyText_Click"/>
+                                        </ContextMenu>
+                                    </telerik:RadListBox.ContextMenu>
+                                </telerik:RadListBox>
+                            </Grid>                                                      
+                        </telerik:GroupBox>
+
+                        <telerik:GroupBox Grid.Row="1" Header="Image present path" Margin="5,5" Foreground="White" FontSize="12" FontFamily="Tahoma" BorderBrush="White" BorderThickness="1">
+                            <telerik:RadListBox x:Name="listDupFolder" Background="Transparent" telerik:StyleManager.Theme="Fluent" ScrollViewer.VerticalScrollBarVisibility="Auto" Padding="5,5,0,10">
+                                <telerik:RadListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid HorizontalAlignment="Left">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="0.9*"/>
+                                                <ColumnDefinition Width="0.1*"/>
+                                            </Grid.ColumnDefinitions>
+                                            
+                                            <TextBlock Text="{Binding}" Grid.Column="0" Padding="2,2,10,2" FontSize="11" TextAlignment="Left" Foreground="AntiqueWhite" HorizontalAlignment="Stretch"  VerticalAlignment="Stretch"/>
+                                            <Button x:Name="btnOpenFile" Grid.Column="1" Content="" Width="20" Height="20" BorderBrush="Transparent" HorizontalAlignment="Right" ToolTip="Open image Location" Click="btnOpenLocation_Click">
+                                                <Button.Background>
+                                                    <ImageBrush ImageSource="icon/folder_icon.png"/>
+                                                </Button.Background>
+                                            </Button>
+                                        </Grid>
+                                    </DataTemplate>
+                                </telerik:RadListBox.ItemTemplate>
+                            </telerik:RadListBox>
+                        </telerik:GroupBox>                        
+                    </Grid>
+                </telerik:RadTabItem>
+            </telerik:RadTabControl>
+            
+            <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right" Height="auto" Margin="0,0,15,0">
+                <telerik:RadButton x:Name="btnCSVExport" CornerRadius="10" Content="Export CSV" HorizontalAlignment="Center" BorderBrush="Black" Background="#FFE7E7E0" Foreground="Brown" FontSize="15" VerticalContentAlignment="Center" Width="auto" 
+                        telerik:StyleManager.Theme="Expression_Dark" Height="25" Padding="20,0" ToolTip="Export to CSV" PreviewMouseLeftButtonDown="ButtonCSVExport_Click" Margin="20,0,0,0"/>
+                <telerik:RadButton x:Name="btnExit" CornerRadius="10" Content="OK" HorizontalAlignment="Center" BorderBrush="Black" Background="#FFE7E7E0" Foreground="Brown" FontSize="15" VerticalContentAlignment="Center" Width="auto" 
+                        telerik:StyleManager.Theme="Expression_Dark" Height="25" Padding="20,0" ToolTip="Close" PreviewMouseLeftButtonDown="ButtonSaveClose_Click" Margin="20,0,0,0"/>
+            </StackPanel>
+        </Grid>
+        <Popup x:Name="popUpWait" IsOpen="False" Placement="Center" PlacementTarget="{Binding ElementName=gridMain}" AllowsTransparency="True">
+            <Border BorderThickness="1" Background="#FFCCCD98" BorderBrush="Black" Height="auto" Width="auto" HorizontalAlignment="Center">
+                <Label Content="Processing.. Please wait.." Width="auto" Height="auto" FontStretch="ExtraExpanded" FontWeight="Normal" FontSize="15" Padding="15,5" VerticalAlignment="Center"/>
+            </Border>
+        </Popup>
+    </Grid>
+</Window>

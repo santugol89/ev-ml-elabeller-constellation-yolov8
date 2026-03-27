@@ -1,0 +1,22 @@
+﻿<Window
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:GenieSupervisor" xmlns:telerik="http://schemas.telerik.com/2008/xaml/presentation"  x:Class="GenieSupervisor.ProgressBarWindow"
+        Width="auto" Height="auto"
+        mc:Ignorable="d" 
+        TextElement.FontFamily="Segoe UI"
+        ContentRendered="ProgressBarwindow_ContentRendered" WindowStartupLocation="CenterOwner"
+        WindowStyle="None" ResizeMode="NoResize" ShowInTaskbar="False" SizeToContent="WidthAndHeight">
+
+    <Border BorderBrush="Black" BorderThickness="0.5" CornerRadius="0" Background="#FFF3E9DC">
+        <Grid>
+            <ProgressBar x:Name="pbStatus" Width="350" Height="20"
+                 Style="{DynamicResource MaterialDesignLinearProgressBar}" IsIndeterminate="True" Value="0" VerticalContentAlignment="Top"/>
+            <!--<telerik:RadProgressBar x:Name="pbStatus" Width="350" Height="20" IsIndeterminate="True" Value="0" VerticalContentAlignment="Top"/>-->
+
+            <TextBlock x:Name="pbStausText" Text="{Binding Value, ElementName=pbStatus, StringFormat=\{0:0\}%}" FontSize="13" Foreground="Black" FontWeight="Medium" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Grid>
+    </Border>
+</Window>

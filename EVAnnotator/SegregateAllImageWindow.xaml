@@ -1,0 +1,33 @@
+﻿<telerik:RadWindow x:Class="GenieSupervisor.SegregateAllImageWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:GenieSupervisor"
+        xmlns:telerik="http://schemas.telerik.com/2008/xaml/presentation"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        mc:Ignorable="d"
+        TextElement.FontWeight="Regular"
+        TextElement.FontSize="13" telerik:StyleManager.Theme="Green"
+        Left="500" Top="300" BorderThickness="1" Width="500" Height="auto" MaxWidth="800" MaxHeight="500" BorderBrush="Black"
+        WindowStartupLocation="Manual" ResizeMode="NoResize" Header="Segregate All Images">
+    <Grid Background="#FF686262">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="60"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Vertical">
+            <StackPanel x:Name="spMain" Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="10,10">
+                <Label Content="Choose Class for Segregation : " Foreground="White" FontWeight="SemiBold" VerticalAlignment="Center" FontSize="15"/>
+                <telerik:RadComboBox x:Name="cmbClassNames" HorizontalAlignment="Right" BorderBrush="Black" FontSize="15" telerik:StyleManager.Theme="Crystal"
+                         VerticalContentAlignment="Center" Width="auto" MaxDropDownHeight="250" MinWidth="150" Height="28" Padding="15,0" Margin="10,0,0,0"/>
+            </StackPanel>
+            <CheckBox x:Name="chkIncludeLabelled" Margin="10,0,0,0" Content="Include already labelled images also(if any)" VerticalContentAlignment="Center" Foreground="LightGoldenrodYellow" IsChecked="True" Padding="5,0"/>
+        </StackPanel>
+        
+
+        <Button x:Name="btnSegregateAll" Grid.Row="1" Width="auto" Content="Segragate All Images" BorderBrush="Black" HorizontalAlignment="Center"
+                Background="#FFB7CBDD" Foreground="Brown" FontSize="15" VerticalAlignment="Center" Height="30" Padding="20,0" Click="btnSegregateAll_Click"/>
+    </Grid>
+</telerik:RadWindow>

@@ -1,0 +1,4127 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows;
+using System.ComponentModel;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Windows.Input;
+using System.Windows.Controls;
+using System.Windows.Shapes;
+using System.Data;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Threading;
+using System.Text.RegularExpressions;
+using System.Diagnostics;
+using System.Windows.Threading;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
+using System.Reflection;
+using System.Collections;
+using Newtonsoft.Json.Linq;
+using System.Windows.Controls.Ribbon;
+using System.Xml;
+using MoreLinq;
+using Delimon;
+using System.Xml.Linq;
+using System.Runtime.InteropServices;
+using System.Windows.Controls.Primitives;
+
+namespace GenieSupervisor
+{
+    public partial class MainWindow : Window, INotifyPropertyChanged
+    {
+        public Shape selShape;
+        public Shape resizeShape;
+        public Shape copyShape;
+        public bool IsPolyFirstPoint = true;
+        public event PropertyChangedEventHandler PropertyChanged;
+        public List<ImageListBox> ProcessedImageBox = new List<ImageListBox>();
+        public ImageListBox SelectedImageBox;
+        public ImageClass ResizeImageClass;
+        public ImageClass CopyImageClass;
+        HitType MouseHitType = HitType.None;
+        public Point PasteMouseLocation;
+        PointCollection polyPoints = new PointCollection();
+        public Shape selLineShape;
+        public bool bIsFormatFile = false;
+        public SolidColorBrush[] ImageMenuBrushes = new SolidColorBrush[] { Brushes.White, Brushes.LightGreen, Brushes.HotPink };
+        Point resizePoint;
+        string[] arrSeleImportData = null;
+        string PrevClassShapeCoord = null;
+        public bool bIsModelLoad = false;
+
+        protected void NotifyPropertyChanged(string propertyName)
+        {
+            if (PropertyChanged != null)
+            {
+                PropertyChanged(this, new PropertyChangedEventArgs(propertyName));
+            }
+        }
+
+        /// <summary>
+        /// Collection list for images in side menu which updates upon adding, deleting, color changing with image menu class 
+        /// </summary>
+        ObservableCollection<ImageMenu> imageMenuList = new ObservableCollection<ImageMenu>();
+        public ObservableCollection<ImageMenu> ImageMenuList
+        {
+            get
+            {
+                return imageMenuList;
+            }
+            set
+            {
+                imageMenuList = value;
+                NotifyPropertyChanged("ImageMenuList");
+            }
+        }
+
+        /// <summary>
+        /// Function to Load Images from selected folder and add images to side menu list 
+        /// </summary>
+        public void LoadImageFiles()
+        {
+            try
+            {
+                //Gets the images from selected folder
+                settings.LoadedImagefiles = GetAllFilesFromDirectory(settings.LoadImagePath);
+                settings.LoadedImageSize = 0;
+                List<string> listDistinctImages = settings.LoadedImagefiles.DistinctBy(item => System.IO.Path.GetFileName(item)).ToList();
+                int nDuplicateCount = settings.LoadedImagefiles.Count - listDistinctImages.Count;
+                if (listDistinctImages.Count > 0)
+                {
+                    int nImgSlNo = 0;
+                    foreach (string imagePath in listDistinctImages)
+                    {
+                        nImgSlNo++;
+                        this.Dispatcher.Invoke((() =>
+                        {
+                            lock (ImageMenuList)
+                            {
+                                ImageMenuList.Add(new ImageMenu(System.IO.Path.GetFileName(imagePath))
+                                {
+                                    ImagePath = imagePath,
+                                    ImageName = System.IO.Path.GetFileName(imagePath),
+                                    MenuItemBrush = ImageMenuBrushes[0],
+                                    ImageSlNo = nImgSlNo.ToString()
+                                });
+
+                                ImageAnalysisList.Add(new ImageAnalysisMenu(imagePath));
+
+                                //Calculate the image size for loaded images
+                                try
+                                {
+                                    Alphaleonis.Win32.Filesystem.FileInfo file = new Alphaleonis.Win32.Filesystem.FileInfo(imagePath);
+                                    settings.LoadedImageSize += Convert.ToUInt64(file.Length);
+                                }
+
+                                catch { }
+                            }
+                        }));
+                    }
+
+                    ImageClassMatching();                           //Matching the Loaded images with loaded datasheet images
+                    bIsLoadLabellingGraph = true;
+                    Dispatcher.Invoke((() =>
+                    {
+                        SPSorting.Visibility = Visibility.Visible;
+                        SPSearch.Visibility = Visibility.Visible;
+                        TotalImagesPresent = settings.LoadedImagefiles.Count;
+                        TotalImagesLoaded = ImageMenuList.Count;
+                        TotalDuplicateImages = nDuplicateCount;
+                        listBoxImages.ItemsSource = ImageMenuList;
+                        listAnalysisImages.ItemsSource = ImageAnalysisList;
+                        labelEvent.Set();                           //Start the CheckLabelling thread
+                        SaveEvent.Set();                            //Start the AutoSaveWork thread
+                        OnWorkerMethodComplete("complete");
+                        cmbSort.SelectionChanged -= cmbSort_SelectionChanged;
+                        cmbSort.SelectedIndex = 0;
+                        cmbSort.SelectionChanged += cmbSort_SelectionChanged;
+                        cmbClassFilter.SelectionChanged -= cmbClassFilter_SelectionChanged;
+                        cmbClassFilter.SelectedIndex = 0;
+                        cmbClassFilter.SelectionChanged += cmbClassFilter_SelectionChanged;
+
+                        SetAnalysisProcessButton(true);
+                        SetAnalysisDisplayButton(false);
+                        if (ImageMenuList.Where(item => Alphaleonis.Win32.Filesystem.Path.GetExtension(item.ImageName) == ".bmp").Count() > ImageMenuList.Count/2)
+                            menuItemJpegToBmp.IsEnabled = false;
+                        else
+                            menuItemBmpToJpeg.IsEnabled = false;
+
+                        MessageBox.Show(string.Format("Total Images in selected folder : {0} \nDuplicate Images found: {2} \nTotal Images Loaded: {1}",
+                                        settings.LoadedImagefiles.Count, ImageMenuList.Count, nDuplicateCount), "Images Loaded", MessageBoxButton.OK, MessageBoxImage.Information, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+                        Utilities.LogMessage(settings.LoadedImagefiles.Count + " Images Loaded from " + settings.LoadImagePath + " path.");
+                    }));
+                }
+                else
+                {
+                    this.Dispatcher.Invoke((() =>
+                    {
+                        TotalImagesPresent = 0;
+                        TotalImagesLoaded = 0;
+                        TotalDuplicateImages = 0;
+                        listBoxImages.ItemsSource = ImageMenuList;
+                        listAnalysisImages.ItemsSource = ImageAnalysisList;
+                        labelEvent.Reset();
+                        SaveEvent.Reset();
+                        OnWorkerMethodComplete("complete");
+                        MessageBox.Show("No images found in selected folder..!\nNote: Images are present inside Output folder will not load..", "Not Found", MessageBoxButton.OK, MessageBoxImage.Warning, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+                        Utilities.LogMessage("No images found in selected folder.");
+                    }));
+                }
+            }
+            catch (Exception ex)
+            {
+                OnWorkerMethodComplete("complete");
+                Utilities.LogMessage("LoadImages Thread: MainWindow : " + ex.Message, 0);
+            }
+        }
+
+        /// <summary>
+        /// Function to set images into image window when Side Image list menu selected 
+        /// and do the operation by getting ROI dimension from Image class
+        /// </summary>
+        public void ListBoxImages_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                if (listBoxImages.SelectedItem == null)
+                    return;
+                ResetWindow();
+
+                ImageMenu currentImage = listBoxImages.SelectedItem as ImageMenu;
+                BitmapImage bmpImage = new BitmapImage();
+                try
+                {
+                    using (FileStream stream = Delimon.Win32.IO.File.OpenRead(currentImage.ImagePath))
+                    {
+                        bmpImage.BeginInit();
+                        bmpImage.CacheOption = BitmapCacheOption.OnLoad;
+                        bmpImage.StreamSource = stream;
+                        bmpImage.EndInit();
+                        ImageSource.Source = bmpImage;
+                    }
+                }
+
+                catch
+                {
+                    lblZoomStatus.Content = "Corrupt Image file.. Loading failed..!";
+                    lblZoomStatus.Visibility = Visibility.Visible;
+                    System.Windows.Media.Animation.Storyboard sb = this.Resources["sbHideZoomLabel"] as System.Windows.Media.Animation.Storyboard;
+                    sb.Begin(lblZoomStatus);
+                }
+                StatusBarImageFile = currentImage.ImagePath;
+
+                SelectedImageBox = currentImage.ImageBox;
+                SelectedImageBox.Imagewidth = bmpImage.PixelWidth;
+                SelectedImageBox.ImageHeight = bmpImage.PixelHeight;
+                StatusBarDimension = "Dimension : " + SelectedImageBox.Imagewidth + " x " + SelectedImageBox.ImageHeight;
+                drawingSurface.Height = SelectedImageBox.ImageHeight;
+                drawingSurface.Width = SelectedImageBox.Imagewidth;
+                ImageSource.Height = SelectedImageBox.ImageHeight;
+                ImageSource.Width = SelectedImageBox.Imagewidth;
+
+                ResetImageWindow(drawingSurface);
+
+                lvImageClass.ItemsSource = SelectedImageBox.ListImageClass;
+                StatusNoteVisiblity = Visibility.Visible;
+                lblStatusNote.Content = ImageSource.Source != null ? "Use Scroll to Zoom In/Out and Press Ctrl+ left Mouse button to drag the image" :
+                                        "This is not a valid Image file";
+
+                if (SelectedImageBox.ListImageClass.Count > 0)
+                    GetRegionofInterestOnImage(SelectedImageBox);
+                lvImageClass.SelectedIndex = -1;
+                lvImageClass.SelectionChanged += ListViewItemClass_SelectionChanged;
+                SetShapeVisibilityWhichSwitch();
+            }
+
+            catch (Exception ex)
+            {
+                Utilities.LogMessage("ListBoxImages_SelectionChangeEvent: " + ex.ToString(), 0);
+            }
+        }
+
+        /// <summary>
+        /// Function to check and enable/disable contextmenu items on the image of drawing surface canvas
+        /// </summary>
+        private void drawingSurface_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+        {
+            PasteMouseLocation = Mouse.GetPosition(drawingSurface);
+            if (ClassContextMenu.Items.Count > 0)
+            {
+                for (int i = 0; i < ClassContextMenu.Items.Count; i++)
+                    ((MenuItem)ClassContextMenu.Items[i]).IsEnabled = false;
+            }
+
+            if(settings.ClassType == EnumClassType.Segregation)
+            {
+                menuAdd.IsEnabled = lvImageClass.Items.Count == 0? true : false;
+
+                if(lvImageClass.SelectedIndex != -1)
+                {
+                    menuEdit.IsEnabled = true;
+                }
+                return;
+            }
+
+            if (!bIsClassAdded && resizeShape != null && ResizeImageClass == null && selShape != null && selShape.Width > 0 & selShape.Height > 0)
+                menuAdd.IsEnabled = true;
+
+            if (!bIsClassAdded && resizeShape != null && resizeShape.DependencyObjectType.Name == "Polyline" && ResizeImageClass == null && (resizeShape as Polyline).Points.Count > 1)
+                menuAdd.IsEnabled = true;
+
+            else if (resizeShape != null && ResizeImageClass != null/* && SelectedShape == EnumSelectedShape.Null*/)
+            {
+                menuEdit.IsEnabled = true;
+                menuCopy.IsEnabled = true;
+                menuSave.IsEnabled = true;
+
+                if (resizeShape.DependencyObjectType.Name == "Polyline")
+                    menuShowBoundBox.IsEnabled = true;
+            }
+            else if (bIsClassAdded && resizeShape == null && copyShape != null)
+                menuPaste.IsEnabled = true;
+        }
+
+        /// <summary>
+        /// Function to do the operation when triggers the Left mouse down event on the drawing surface canvas 
+        /// where images loaded and labelling work done by user.
+        /// </summary>
+        private void drawingSurface_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (ImageSource.Source == null || Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
+                return;
+
+            this.Cursor = Cursors.Arrow;
+            resizeShape = null;
+            ResizeImageClass = null;
+            if (drawingSurface.Children.Count > 1)
+            {
+                if(selBoundBox != null && drawingSurface.Children.Contains(selBoundBox))
+                {
+                    drawingSurface.Children.Remove(selBoundBox);
+                    selBoundBox = null;
+                }
+                if (selLineShape != null)
+                {
+                    drawingSurface.Children.Remove(selLineShape);
+                    selLineShape = null;
+                }
+
+                resizeShape = GetSelectedShape();
+                EnumSelectedShape curGetShapeEnum = EnumSelectedShape.Null;
+                if (resizeShape != null)
+                {
+                    curGetShapeEnum = resizeShape.DependencyObjectType.Name == "Rectangle" ? EnumSelectedShape.Rectangle : resizeShape.DependencyObjectType.Name == "Ellipse" ? EnumSelectedShape.Circle :
+                                resizeShape.DependencyObjectType.Name == "Polyline" ? EnumSelectedShape.Polyline : EnumSelectedShape.Null;
+                }
+                if (resizeShape != null && (SelectedShape == EnumSelectedShape.Null || curGetShapeEnum == SelectedShape))
+                {
+                    //resizeShape.Stroke = Brushes.Blue;
+                    resizeShape.Fill = new SolidColorBrush { Color = Colors.Aqua, Opacity = 0.1 };
+                    resizeShape.Stroke = ResizeImageClass != null ? ResizeImageClass.SelectionStroke : Brushes.Blue;
+                }
+                else
+                {
+                    resizeShape = null;
+                    lvImageClass.SelectedIndex = -1;
+                }
+            }
+
+            StartPoint = Mouse.GetPosition(drawingSurface);
+
+            if (resizeShape != null)
+            {
+                LastPoint = Mouse.GetPosition(drawingSurface);
+                bResizing = true;
+                MouseHitType = SetHitType(StartPoint);
+                SetMouseCursor();
+                drawingSurface.CaptureMouse();
+                IsFirstPoint = false;
+                if (MouseHitType == HitType.None) return;
+                return;
+            }
+            else if (SelectedShape != EnumSelectedShape.Null && resizeShape == null)
+            {
+                bResizing = false;
+                if (!bIsClassAdded && selShape != null)
+                {
+                    drawingSurface.Children.Remove(selShape);                    //removes previously drawn shape
+                    IsEnableClassStackPanel = false;
+                    txtClassID.Clear();
+                    //cmbClassName.Text = "";
+                    selShape = null;
+                    bIsClassAdded = true;
+                    IsPolyFirstPoint = true;
+                    ListViewClass_LostFocus(null, null);
+                    return;
+                }
+
+                if (SelectedShape == EnumSelectedShape.Rectangle)
+                {
+                    Rectangle selRect = new Rectangle();
+                    selShape = selRect;
+                }
+                else if (SelectedShape == EnumSelectedShape.Circle)
+                {
+                    Ellipse selCircle = new Ellipse();
+                    selShape = selCircle;
+                }
+                else if (SelectedShape == EnumSelectedShape.Polyline && IsPolyFirstPoint)
+                {
+                    Polyline selPolyline = new Polyline();
+                    polyPoints = new PointCollection();
+                    selPolyline.Points = polyPoints;
+                    selShape = selPolyline;
+                }
+
+                if (selShape == null)
+                    return;
+
+                selShape.Stroke = Brushes.Red;
+                selShape.StrokeThickness = ShapeStrokeThickness;
+                selShape.StrokeLineJoin = PenLineJoin.Round;
+                selShape.StrokeStartLineCap = PenLineCap.Round;
+                selShape.StrokeEndLineCap = PenLineCap.Round;
+                selShape.Fill = Brushes.Transparent;
+                selShape.Visibility = Visibility.Visible;
+                drawingSurface.ClipToBounds = true;
+
+                if (selShape.DependencyObjectType.Name == "Rectangle" || selShape.DependencyObjectType.Name == "Ellipse")
+                {
+                    if (e.ClickCount == 2 && selShape.DependencyObjectType.Name == "Ellipse")
+                    {
+                        Canvas.SetLeft(selShape, StartPoint.X - settings.DefaultRadius);
+                        Canvas.SetTop(selShape, StartPoint.Y - settings.DefaultRadius);
+                        selShape.Width = settings.DefaultRadius * 2;
+                        selShape.Height = settings.DefaultRadius * 2;
+                        drawingSurface.Children.Add(selShape);
+
+                    }
+                    else
+                    {
+                        IsFirstPoint = true;
+                        Canvas.SetLeft(selShape, StartPoint.X);
+                        Canvas.SetTop(selShape, StartPoint.Y);
+                        selShape.Width = 0;
+                        selShape.Height = 0;
+                        drawingSurface.CaptureMouse();
+                        this.Cursor = Cursors.Cross;
+                        drawingSurface.Children.Add(selShape);
+                    }
+                }
+                else if (selShape.DependencyObjectType.Name == "Polyline" && bIsClassAdded)
+                {
+                    //if (polyPoints.Count > 1 && StartPoint.X > polyPoints[0].X - 2 && StartPoint.Y > polyPoints[0].Y - 2 &&
+                    //    StartPoint.X < polyPoints[0].X + 2 && StartPoint.Y < polyPoints[0].Y + 2)
+                    if (polyPoints.Count > 2 && e.ClickCount == 2)
+                    {
+                        this.Cursor = Cursors.Arrow;
+                        polyPoints.Add(polyPoints[0]);
+                        selShape.Stroke = Brushes.Blue;
+                        bIsClassAdded = false;
+                        IsPolyFirstPoint = true;
+                        for (int i = 0; i < ClassContextMenu.Items.Count; i++)
+                            ((MenuItem)ClassContextMenu.Items[i]).IsEnabled = false;
+                        menuAdd.IsEnabled = true;
+                        ClassContextMenu.IsOpen = true;
+                        resizePoint = new Point();
+                    }
+                    if (IsPolyFirstPoint && bIsClassAdded)
+                    {
+                        IsPolyFirstPoint = false;
+                        this.Cursor = Cursors.Cross;
+                        polyPoints.Add(StartPoint);
+                        drawingSurface.Children.Add(selShape);
+
+                        Line myLine = new Line();
+                        myLine.Stroke = Brushes.Red;
+                        myLine.StrokeThickness = ShapeStrokeThickness;
+                        myLine.Fill = Brushes.Transparent;
+                        selLineShape = myLine;
+                        drawingSurface.Children.Add(selLineShape);
+                    }
+                    else if (!IsPolyFirstPoint && bIsClassAdded)
+                    {
+                        this.Cursor = Cursors.Cross;
+                        polyPoints.Add(StartPoint);
+
+                        Line myLine = new Line();
+                        myLine.Stroke = Brushes.Red;
+                        myLine.StrokeThickness = ShapeStrokeThickness;
+                        myLine.Fill = Brushes.Transparent;
+                        myLine.ToolTip = "Double click To connect";
+                        selLineShape = myLine;
+                        drawingSurface.Children.Add(selLineShape);
+                    }
+                }
+
+                btnAddClass.Content = "Add Class";
+                btnAddClass.ToolTip = "Add to Class";
+            }
+        }
+
+        /// <summary>
+        /// Function to do the operation when triggers the Left mouse up event on the drawing surface canvas 
+        /// where images loaded and labelling work done by user.
+        /// </summary>
+        private void drawingSurface_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (ImageSource.Source == null || Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
+                return;
+
+            drawingSurface.ReleaseMouseCapture();
+
+            if (resizeShape != null)
+            {
+                bResizing = false;
+                this.Cursor = Cursors.Arrow;
+                PrevClassShapeCoord = "";
+                if (ResizeImageClass != null)
+                {
+                    string shape = resizeShape.DependencyObjectType.Name == "Rectangle" ? "rect" : resizeShape.DependencyObjectType.Name == "Ellipse" ?
+                            "circle" : resizeShape.DependencyObjectType.Name == "Polyline" ? "polyline" : "";
+
+                    PrevClassShapeCoord = Regex.Replace(ResizeImageClass.ShapeCoordinates, @"[""{} ]", "");
+
+                    if (ResizeImageClass.Shape == EnumSelectedShape.Rectangle || ResizeImageClass.Shape == EnumSelectedShape.Circle)
+                    {
+                        ResizeImageClass.XCoordinate = Math.Round(Canvas.GetLeft(resizeShape), 3);
+                        ResizeImageClass.YCoordinate = Math.Round(Canvas.GetTop(resizeShape), 3);
+                        ResizeImageClass.Width = Math.Round(resizeShape.Width, 3);
+                        ResizeImageClass.Height = Math.Round(resizeShape.Height, 3);
+                        ResizeImageClass.ShapeCoordinates = "{\"name\":\"" + shape + "\", \"x\": " + ResizeImageClass.XCoordinate + ", \"y\": " + ResizeImageClass.YCoordinate +
+                                                            ", \"width\": " + ResizeImageClass.Width + ", \"height\": " + ResizeImageClass.Height + " }";
+                    }
+
+                    else if (ResizeImageClass.Shape == EnumSelectedShape.Polyline)
+                    {
+                        ResizeImageClass.All_Points_X.Clear();
+                        ResizeImageClass.All_Points_Y.Clear();
+                        foreach (Point p in (resizeShape as Polyline).Points)
+                        {
+                            ResizeImageClass.All_Points_X.Add(Math.Round(p.X, 0));
+                            ResizeImageClass.All_Points_Y.Add(Math.Round(p.Y, 0));
+                        }
+                        ResizeImageClass.ShapeCoordinates = "{\"name\":\"" + shape + "\", \"all_points_x\": [" + String.Join(", ", ResizeImageClass.All_Points_X) + "], \"all_points_y\": [" + String.Join(", ", ResizeImageClass.All_Points_Y) + "] }";
+                        StatusSelectedDimension = "";
+                    }
+
+                    arrSeleImportData = null;
+                    var tempImportData = ListDatasheetImportData.FirstOrDefault(temp => temp.DatasheetName == ResizeImageClass.ImportDatasheetName);
+                    if (tempImportData != null)
+                    {
+                        arrSeleImportData = tempImportData.ListImportData.FirstOrDefault(item => item[0].Trim() == SelectedImageBox.ImageBoxName && Regex.Replace(item[2], @"[""{} ]", "") == PrevClassShapeCoord);
+                        if (arrSeleImportData != null && arrSeleImportData.Length > 2)
+                            arrSeleImportData[2] = "\"" + ResizeImageClass.ShapeCoordinates.Replace("\"", "\"\"") + "\"";
+                    }
+
+                    lvImageClass.Items.Refresh();
+                    ImageClass selImageClass = SelectedImageBox.ListImageClass.FirstOrDefault(item => item.ShapeCoordinates == ResizeImageClass.ShapeCoordinates);
+                    lvImageClass.SelectedIndex = selImageClass != null ? SelectedImageBox.ListImageClass.IndexOf(selImageClass) : -1;
+                    lvImageClass.Focus();
+                }
+                else
+                {
+                    lvImageClass.SelectedIndex = -1;
+                }
+                return;
+            }
+
+            else if (SelectedShape != EnumSelectedShape.Null && resizeShape == null && selShape != null)
+            {
+                if (selShape.DependencyObjectType.Name == "Rectangle" || selShape.DependencyObjectType.Name == "Ellipse")
+                {
+                    if (selShape.Width > 0 & selShape.Height > 0)
+                    {
+                        bIsClassAdded = false;
+                        for (int i = 0; i < ClassContextMenu.Items.Count; i++)
+                            ((MenuItem)ClassContextMenu.Items[i]).IsEnabled = false;
+                        menuAdd.IsEnabled = true;
+                        if (IsFirstPoint)
+                            ClassContextMenu.IsOpen = true;
+                    }
+                    else
+                    {
+                        drawingSurface.Children.Remove(selShape);
+                        menuAdd.IsEnabled = false;
+                        StatusSelectedDimension = "";
+                    }
+                    IsFirstPoint = false;
+                    this.Cursor = Cursors.Arrow;
+                }
+                return;
+            }
+        }
+
+        /// <summary>
+        /// Function to do the operation when mouse move event triggers on the drawing surface canvas 
+        /// where images loaded and labelling work done by user.
+        /// </summary>
+        private void drawingSurface_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            System.Windows.Point mousePos = Mouse.GetPosition(drawingSurface);
+            if (resizeShape != null && resizeShape.Visibility == Visibility.Visible && !drawingSurface.IsMouseCaptured)
+            {
+                MouseHitType = SetHitType(mousePos);
+                SetMouseCursor();
+            }
+
+            else if (bResizing && MouseHitType != HitType.None && resizeShape != null && drawingSurface.IsMouseCaptured)
+            {
+                double offset_x = mousePos.X - LastPoint.X;
+                double offset_y = mousePos.Y - LastPoint.Y;
+
+                if (resizeShape.DependencyObjectType.Name == "Rectangle")
+                {
+                    // Get the rectangle's current position.
+                    double new_x = Canvas.GetLeft(resizeShape);
+                    double new_y = Canvas.GetTop(resizeShape);
+                    double new_width = resizeShape.Width;
+                    double new_height = resizeShape.Height;
+
+                    switch (MouseHitType)
+                    {
+                        case HitType.Body:
+                            new_x += offset_x;
+                            new_y += offset_y;
+                            break;
+                        case HitType.UL:
+                            new_x += offset_x;
+                            new_y += offset_y;
+                            new_width -= offset_x;
+                            new_height -= offset_y;
+                            break;
+                        case HitType.UR:
+                            new_y += offset_y;
+                            new_width += offset_x;
+                            new_height -= offset_y;
+                            break;
+                        case HitType.LR:
+                            new_width += offset_x;
+                            new_height += offset_y;
+                            break;
+                        case HitType.LL:
+                            new_x += offset_x;
+                            new_width -= offset_x;
+                            new_height += offset_y;
+                            break;
+                        case HitType.L:
+                            new_x += offset_x;
+                            new_width -= offset_x;
+                            break;
+                        case HitType.R:
+                            new_width += offset_x;
+                            break;
+                        case HitType.B:
+                            new_height += offset_y;
+                            break;
+                        case HitType.T:
+                            new_y += offset_y;
+                            new_height -= offset_y;
+                            break;
+                    }
+
+                    // When the mouse is held down, reposition the drag selection box.
+                    if ((new_width > 0) && (new_height > 0))
+                    {
+                        // Update the rectangle.
+                        Canvas.SetLeft(resizeShape, new_x);
+                        Canvas.SetTop(resizeShape, new_y);
+                        resizeShape.Width = new_width;
+                        resizeShape.Height = new_height;
+                        LastPoint = mousePos;
+                        StatusSelectedDimension = Convert.ToInt32(resizeShape.Width) + " x " + Convert.ToInt32(resizeShape.Height);
+
+                        if(ResizeImageClass != null)
+                        {
+                            Canvas.SetLeft(ResizeImageClass.DrawLabel, new_x - 5);
+                            Canvas.SetTop(ResizeImageClass.DrawLabel, new_y - (ResizeImageClass.DrawLabel.Height - 4));
+                        }
+                    }
+                }
+
+                else if (resizeShape.DependencyObjectType.Name == "Ellipse")
+                {
+                    double sideLength = 0;
+                    // Get the rectangle's current position.
+                    double new_x = Canvas.GetLeft(resizeShape);
+                    double new_y = Canvas.GetTop(resizeShape);
+                    double new_width = resizeShape.Width;
+                    double new_height = resizeShape.Height;
+
+                    switch (MouseHitType)
+                    {
+                        case HitType.Body:
+                            new_x += offset_x;
+                            new_y += offset_y;
+                            break;
+
+                        case HitType.UL:
+                            sideLength = Math.Min(new_width - offset_x, new_height - offset_y);
+                            new_x += (new_width - sideLength);
+                            new_y += (new_height - sideLength);
+                            new_width = new_height = sideLength;
+                            break;
+
+                        case HitType.UR:
+                            sideLength = Math.Min(new_width + offset_x, new_height - offset_y);
+                            new_y += (new_height - sideLength);
+                            new_width = new_height = sideLength;
+                            break;
+
+                        case HitType.LR:
+                            sideLength = Math.Min(new_width + offset_x, new_height + offset_y);
+                            new_width = new_height = sideLength;
+                            break;
+
+                        case HitType.LL:
+                            sideLength = Math.Min(new_width - offset_x, new_height + offset_y);
+                            new_x += (new_width - sideLength);
+                            new_width = new_height = sideLength;
+                            break;
+
+                        case HitType.L:
+                            sideLength = new_width - offset_x;
+                            new_x += (new_width - sideLength);
+                            new_width = new_height = sideLength;
+                            break;
+
+                        case HitType.R:
+                            sideLength = new_width + offset_x;
+                            new_width = new_height = sideLength;
+                            break;
+
+                        case HitType.T:
+                            sideLength = new_height - offset_y;
+                            new_y += (new_height - sideLength);
+                            new_width = new_height = sideLength;
+                            break;
+
+                        case HitType.B:
+                            sideLength = new_height + offset_y;
+                            new_width = new_height = sideLength;
+                            break;
+                    }
+
+                    if (new_width > 0 && new_height > 0)
+                    {
+                        Canvas.SetLeft(resizeShape, new_x);
+                        Canvas.SetTop(resizeShape, new_y);
+                        resizeShape.Width = new_width;
+                        resizeShape.Height = new_height;
+                        LastPoint = mousePos;
+
+                        StatusSelectedDimension = $"{(int)new_width} x {(int)new_height}    rad : " + (int)(new_width / 2);
+
+                        if (ResizeImageClass != null)
+                        {
+                            Canvas.SetLeft(ResizeImageClass.DrawLabel, new_x - 5);
+                            Canvas.SetTop(ResizeImageClass.DrawLabel, new_y - (ResizeImageClass.DrawLabel.Height - 4));
+                        }
+                    }
+                }
+
+                else if (resizeShape.DependencyObjectType.Name == "Polyline")
+                {
+                    switch (MouseHitType)
+                    {
+                        case HitType.Body:                                  //check for body part on labelled ROI
+                            {
+                                Polyline curPolyline = resizeShape as Polyline;
+                                PointCollection newPointCollection = new PointCollection();
+                                foreach (Point p in curPolyline.Points)
+                                {
+                                    Point newPoint = p;
+                                    newPoint.X += offset_x;
+                                    newPoint.Y += offset_y;
+                                    newPointCollection.Add(newPoint);
+                                }
+                                curPolyline.Points = newPointCollection;
+                            }
+                            break;
+
+                        case HitType.Edge:                               //check for edge part on labelled ROI  
+                            {
+                                Polyline curPolyline = resizeShape as Polyline;
+                                int index = curPolyline.Points.IndexOf(resizePoint);
+                                if (index >= 0)
+                                {
+                                    Point newPoint = resizePoint;
+                                    newPoint.X += offset_x;
+                                    newPoint.Y += offset_y;
+                                    curPolyline.Points[index] = newPoint;
+                                    if (index == 0)
+                                        curPolyline.Points[curPolyline.Points.Count - 1] = newPoint;
+
+                                    resizePoint = newPoint;
+                                }
+                            }
+                            break;
+                    }
+                    StatusSelectedDimension = "X : " + Convert.ToInt32(mousePos.X) + ", Y : " + Convert.ToInt32(mousePos.Y);
+                    LastPoint = mousePos;
+
+                    if (ResizeImageClass != null)
+                    {
+                        double x = (resizeShape as Polyline).Points.First().X;
+                        double y = (resizeShape as Polyline).Points.First().Y;
+                        Canvas.SetLeft(ResizeImageClass.DrawLabel, x - 5);
+                        Canvas.SetTop(ResizeImageClass.DrawLabel, y - (ResizeImageClass.DrawLabel.Height - 4));
+                    }
+                }
+            }
+            else if ((IsFirstPoint || !IsPolyFirstPoint) && SelectedShape != EnumSelectedShape.Null && !(Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)))
+            {
+                this.Cursor = Cursors.Cross;
+                
+                if (selShape.DependencyObjectType.Name == "Rectangle")
+                {
+                    if (StartPoint.X < mousePos.X)
+                    {
+                        Canvas.SetLeft(selShape, StartPoint.X);
+                        selShape.Width = mousePos.X - StartPoint.X;
+                    }
+                    else
+                    {
+                        Canvas.SetLeft(selShape, mousePos.X);
+                        selShape.Width = StartPoint.X - mousePos.X;
+                    }
+
+                    if (StartPoint.Y < mousePos.Y)
+                    {
+                        Canvas.SetTop(selShape, StartPoint.Y);
+                        selShape.Height = mousePos.Y - StartPoint.Y;
+                    }
+                    else
+                    {
+                        Canvas.SetTop(selShape, mousePos.Y);
+                        selShape.Height = StartPoint.Y - mousePos.Y;
+                    }
+
+                    if (selShape.Width > drawingSurface.Width - Canvas.GetLeft(selShape))
+                        selShape.Width = drawingSurface.Width - Canvas.GetLeft(selShape);
+
+                    if (selShape.Height > drawingSurface.Height - Canvas.GetTop(selShape))
+                        selShape.Height = drawingSurface.Height - Canvas.GetTop(selShape);
+
+                    if (Canvas.GetLeft(selShape) < 0)
+                        Canvas.SetLeft(selShape, 0);
+
+                    if (Canvas.GetTop(selShape) < 0)
+                        Canvas.SetTop(selShape, 0);
+
+                    StatusSelectedDimension = Convert.ToInt32(selShape.Width) + " x " + Convert.ToInt32(selShape.Height);
+                }
+
+                else if (selShape.DependencyObjectType.Name == "Ellipse")
+                {
+                    double dx = mousePos.X - StartPoint.X;
+                    double dy = mousePos.Y - StartPoint.Y;
+
+                    double radius = Math.Sqrt(dx * dx + dy * dy);
+
+                    // Optional: use max or min for a strict square-based circle
+                    // double side = Math.Max(Math.Abs(dx), Math.Abs(dy));
+
+                    double left = StartPoint.X - radius;
+                    double top = StartPoint.Y - radius;
+
+                    Canvas.SetLeft(selShape, left);
+                    Canvas.SetTop(selShape, top);
+
+                    selShape.Width = radius * 2;
+                    selShape.Height = radius * 2;
+
+                    // Optional: enforce boundary limits
+                    if (Canvas.GetLeft(selShape) < 0)
+                        Canvas.SetLeft(selShape, 0);
+
+                    if (Canvas.GetTop(selShape) < 0)
+                        Canvas.SetTop(selShape, 0);
+
+                    if (selShape.Width > drawingSurface.Width - Canvas.GetLeft(selShape))
+                        selShape.Width = drawingSurface.Width - Canvas.GetLeft(selShape);
+
+                    if (selShape.Height > drawingSurface.Height - Canvas.GetTop(selShape))
+                        selShape.Height = drawingSurface.Height - Canvas.GetTop(selShape);
+
+                    StatusSelectedDimension = Convert.ToInt32(selShape.Width) + " x " + Convert.ToInt32(selShape.Height) + "    rad: " + (int)(selShape.Width / 2);
+                }
+
+                else if (selShape.DependencyObjectType.Name == "Polyline" && selLineShape != null)
+                {
+                    (selLineShape as Line).X1 = StartPoint.X;
+                    (selLineShape as Line).Y1 = StartPoint.Y;
+                    (selLineShape as Line).X2 = mousePos.X;
+                    (selLineShape as Line).Y2 = mousePos.Y;
+                    StatusSelectedDimension = "X : " + Convert.ToInt32(mousePos.X) + ", Y : " + Convert.ToInt32(mousePos.Y);
+                }
+            }
+            if (selShape == null && resizeShape == null)
+                StatusSelectedDimension = "";
+        }
+
+        /// <summary>
+        /// Function to do the operation when mouse leave event triggers on the drawing surface canvas 
+        /// where images loaded and labelling work done by user.
+        /// </summary>
+        private void drawingSurface_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            drawingSurface.ReleaseMouseCapture();
+            this.Cursor = Cursors.Arrow;
+        }
+
+        /// <summary>
+        /// Function to Highlight the selected shape on the drawing surface canvas where image loaded  
+        /// </summary>
+        public Shape GetSelectedShape()
+        {
+            Point point = Mouse.GetPosition(drawingSurface);
+            Shape selShape = null;
+
+            List<Shape> listShapes = new List<Shape>();
+            var filteredCanvasChilds = drawingSurface.Children.OfType<UIElement>().Where(child => !(child is System.Windows.Controls.Label)).ToList();
+            for (int nChild = 1; nChild < filteredCanvasChilds.Count; nChild++)
+            {
+                if((filteredCanvasChilds[nChild] as Shape).DependencyObjectType.Name == "Rectangle" || (filteredCanvasChilds[nChild] as Shape).DependencyObjectType.Name == "Ellipse")
+                    listShapes.Add(filteredCanvasChilds[nChild] as Shape);
+            }                
+            
+            if (listShapes.Count > 0)
+            {
+                var listTemp = listShapes.Where(item => item.Visibility == Visibility.Visible &&
+                                    point.X > Canvas.GetLeft(item) && point.X < (Canvas.GetLeft(item) + item.Width) && point.Y > Canvas.GetTop(item) && point.Y < (Canvas.GetTop(item) + item.Height));
+
+                if (listTemp.Count() == 1)
+                    selShape = listTemp.First();
+
+                else if(listTemp.Count() > 1) {
+                    Shape curShape = listTemp.OrderBy(item => item.Width * item.Height).FirstOrDefault();
+                    if (curShape != null)
+                        selShape = curShape;
+                }
+
+                if(selShape != null)
+                    ResizeImageClass = GetResizeImageClass(selShape);
+            }
+
+            for (int nChild = filteredCanvasChilds.Count - 1; nChild > 0; nChild--)
+            {
+                Shape curShape = filteredCanvasChilds[nChild] as Shape;
+                if (curShape.Visibility == Visibility.Collapsed)
+                    continue;
+                //curShape.Stroke = Brushes.Red;
+                ImageClass curImageClass = GetResizeImageClass(curShape);
+                curShape.Stroke = curImageClass != null ? curImageClass.HighLightStroke : Brushes.Red;
+                curShape.Fill = new SolidColorBrush { Color = Colors.Transparent, Opacity = 1 };
+
+                if (curShape.DependencyObjectType.Name == "Polyline" && IsPolyFirstPoint)
+                {
+                    resizePoint = new Point();
+                    char PointTouch = IsPointTouchBodyorEdge((curShape as Polyline).Points, point);
+                    if (PointTouch == 'B' || PointTouch == 'E')
+                    {
+                        selShape = curShape;
+                        ResizeImageClass = curImageClass;
+
+                        if ((Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)) && PointTouch == 'E' && ResizeImageClass != null)
+                        {
+                            int indexPoint = (curShape as Polyline).Points.IndexOf(resizePoint);
+                            (curShape as Polyline).Points.Insert(indexPoint, new Point(Convert.ToInt32(point.X), Convert.ToInt32(point.Y)));
+                            ResizeImageClass.All_Points_X.Insert(indexPoint, Convert.ToInt32(point.X));
+                            ResizeImageClass.All_Points_Y.Insert(indexPoint, Convert.ToInt32(point.Y));
+                        }
+                    }
+                }
+            }
+            return selShape;
+        }
+
+        /// <summary>
+        /// Function to check whether selected part is body or edge of labelled ROI on the drawing surface canvas where image loaded  
+        /// </summary>
+        public char IsPointTouchBodyorEdge(IList<Point> polyline, Point mousePoint)
+        {
+            if (drawingSurface.IsMouseCaptured && !bIsClassAdded)
+                return ' ';
+            char result = ' ';
+            int j = polyline.Count - 1;
+
+            if (!IsInPolyLine(mousePoint, polyline))
+            {
+                return ' ';
+            }
+            else
+            {
+                for (int i = 0; i < polyline.Count; i++)
+                {
+                    if (CheckPointIsinLine(polyline[i], polyline[j], mousePoint))
+                    {
+                        Vector v1 = polyline[i] - mousePoint;
+                        Vector v2 = polyline[j] - mousePoint;
+                        if (v1.Length > v2.Length)
+                            resizePoint = polyline[j];
+                        else
+                            resizePoint = polyline[i];
+
+                        return result = result == 'E' ? ' ' : 'E';
+                    }
+                    else
+                        result = 'B';
+                    j = i;
+                }
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Function to check whether mouse point is lies on the line of polygon shape ROI
+        /// on the drawing surface canvas where image loaded  
+        /// </summary>
+        private bool CheckPointIsinLine(Point a, Point b, Point c)
+        {
+            if (a == b)
+                b = new Point(b.X + 20, b.Y + 20);
+            double distance = Math.Abs((c.Y - b.Y) * a.X - (c.X - b.X) * a.Y + c.X * b.Y - c.Y * b.X) / Math.Sqrt(Math.Pow((c.Y - b.Y), 2) + Math.Pow((c.X - b.X), 2));
+            if (distance > 4)
+                return false;
+
+            double dotproduct = (c.X - a.X) * (b.X - a.X) + (c.Y - a.Y) * (b.Y - a.Y);
+            if (dotproduct < 0) { return false; }
+
+            double squaredlengthba = (b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y);
+            if (dotproduct > squaredlengthba) { return false; }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Function to check whether mouse point is inside polygon shape ROI or not
+        /// on the drawing surface canvas where image loaded  
+        /// </summary>
+        public static bool IsInPolyLine(Point testPoint, IList<Point> vertices)
+        {
+            if (vertices.Count < 3) return false;
+            bool isInPolygon = false;
+            var lastVertex = vertices[vertices.Count - 1];
+            foreach (var vertex in vertices)
+            {
+                if (testPoint.Y.IsInBetween(lastVertex.Y, vertex.Y))
+                {
+                    double t = (testPoint.Y - lastVertex.Y) / (vertex.Y - lastVertex.Y);
+                    double x = t * (vertex.X - lastVertex.X) + lastVertex.X;
+                    if (x >= testPoint.X)
+                        isInPolygon = !isInPolygon;
+                }
+                else
+                {
+                    if (testPoint.Y == lastVertex.Y && testPoint.X < lastVertex.X && vertex.Y > testPoint.Y)
+                        isInPolygon = !isInPolygon;
+                    if (testPoint.Y == vertex.Y && testPoint.X < vertex.X && lastVertex.Y > testPoint.Y)
+                        isInPolygon = !isInPolygon;
+                }
+
+                lastVertex = vertex;
+            }
+
+            return isInPolygon;
+        }
+
+        /// <summary>
+        /// Function to check which type of edge to select mouse point type while pointing on shape
+        /// on the drawing surface canvas where image loaded  
+        /// </summary>
+        private HitType SetHitType(Point point)
+        {
+            if (resizeShape.DependencyObjectType.Name == "Rectangle" || resizeShape.DependencyObjectType.Name == "Ellipse")
+            {
+                double left = Canvas.GetLeft(resizeShape);
+                double top = Canvas.GetTop(resizeShape);
+                double right = left + resizeShape.Width;
+                double bottom = top + resizeShape.Height;
+                if (point.X < left) return HitType.None;
+                if (point.X > right) return HitType.None;
+                if (point.Y < top) return HitType.None;
+                if (point.Y > bottom) return HitType.None;
+
+                const double GAP = 10;
+                if (point.X - left < GAP)
+                {
+                    // Left edge.
+                    if (point.Y - top < GAP) return HitType.UL;
+                    if (bottom - point.Y < GAP) return HitType.LL;
+                    return HitType.L;
+                }
+                else if (right - point.X < GAP)
+                {
+                    // Right edge.
+                    if (point.Y - top < GAP) return HitType.UR;
+                    if (bottom - point.Y < GAP) return HitType.LR;
+                    return HitType.R;
+                }
+                if (point.Y - top < GAP) return HitType.T;
+                if (bottom - point.Y < GAP) return HitType.B;
+            }
+
+            else if (resizeShape.DependencyObjectType.Name == "Polyline")
+            {
+                Polyline curPolyline = resizeShape as Polyline;
+                char PointTouch = IsPointTouchBodyorEdge(curPolyline.Points, point);
+                if (PointTouch == 'B')
+                    return HitType.Body;
+                else if (PointTouch == 'E')
+                    return HitType.Edge;
+                else
+                    return HitType.None;
+            }
+
+            return HitType.Body;
+        }
+
+        /// <summary>
+        /// Function to set mouse point type while pointing on shape on the drawing surface canvas where image loaded  
+        /// </summary>
+        private void SetMouseCursor()
+        {
+            // See what cursor we should display.
+            Cursor desired_cursor = Cursors.Arrow;
+            switch (MouseHitType)
+            {
+                case HitType.None:
+                    desired_cursor = Cursors.Arrow;
+                    break;
+                case HitType.Body:
+                    desired_cursor = Cursors.ScrollAll;
+                    break;
+                case HitType.UL:
+                case HitType.LR:
+                    desired_cursor = Cursors.SizeNWSE;
+                    break;
+                case HitType.LL:
+                case HitType.UR:
+                    desired_cursor = Cursors.SizeNESW;
+                    break;
+                case HitType.T:
+                case HitType.B:
+                    desired_cursor = Cursors.SizeNS;
+                    break;
+                case HitType.L:
+                case HitType.R:
+                    desired_cursor = Cursors.SizeWE;
+                    break;
+                case HitType.Edge:
+                    desired_cursor = Cursors.Cross;
+                    break;
+            }
+            if (Cursor != desired_cursor) Cursor = desired_cursor;
+        }
+
+        /// <summary>
+        /// Function to Get the Image class by giving shape size to resize the labelled ROI  
+        /// </summary>
+        private ImageClass GetResizeImageClass(Shape resizeShape)
+        {
+            if (resizeShape.DependencyObjectType.Name == "Rectangle" || resizeShape.DependencyObjectType.Name == "Ellipse")
+            {
+                double x1 = Canvas.GetLeft(resizeShape);
+                double y1 = Canvas.GetTop(resizeShape);
+                double x2 = x1 + resizeShape.Width;
+                double y2 = y1 + resizeShape.Height;
+                foreach (ImageClass item in SelectedImageBox.ListImageClass)
+                {
+                    if (!(item.Shape == EnumSelectedShape.Rectangle || item.Shape == EnumSelectedShape.Circle))
+                        continue;
+
+                    if (item.XCoordinate == Math.Round(x1, 3) && item.YCoordinate == Math.Round(y1, 3)
+                        && item.Width == Math.Round(resizeShape.Width, 3) && item.Height == Math.Round(resizeShape.Height, 3))
+                    {
+                        return item;
+                    }
+                }
+            }
+            else if (resizeShape.DependencyObjectType.Name == "Polyline")
+            {
+                foreach (ImageClass item in SelectedImageBox.ListImageClass)
+                {
+                    if (item.Shape != EnumSelectedShape.Polyline)
+                        continue;
+
+                    List<double> tempX = (resizeShape as Polyline).Points.Select(items => Math.Round(items.X, 0)).ToList();
+                    List<double> tempY = (resizeShape as Polyline).Points.Select(items => Math.Round(items.Y, 0)).ToList();
+                    if (String.Join(" ", item.All_Points_X) == String.Join(" ", tempX) && String.Join(" ", item.All_Points_Y) == String.Join(" ", tempY))
+                    {
+                        return item;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Function to edit the labelled ROI by right click on drawing surface  
+        /// </summary>
+        private void EditImageAttribute_Click(object sender, MouseEventArgs e)
+        {
+            if(settings.ClassType == EnumClassType.Segregation && lvImageClass.SelectedIndex != -1)
+            {
+                IsEnableClassStackPanel = true;
+                cmbClassName.IsDropDownOpen = true;
+                btnAddClass.Content = "Update Class";
+                btnAddClass.ToolTip = "Update Class";
+                flagClassOp = 'V';
+                ResizeImageClass = lvImageClass.Items.Count > lvImageClass.SelectedIndex ? lvImageClass.Items[lvImageClass.SelectedIndex] as ImageClass : null;
+            }
+            if (resizeShape != null && ResizeImageClass != null/* && SelectedShape == EnumSelectedShape.Null*/)
+            {
+                IsEnableClassStackPanel = true;
+                cmbClassName.IsDropDownOpen = true;
+                btnAddClass.Content = "Update Class";
+                btnAddClass.ToolTip = "Update Class";
+                flagClassOp = 'E';
+            }
+        }
+
+        private ScaleTransform GetScaleTransform(UIElement element)
+        {
+            return (ScaleTransform)((TransformGroup)element.RenderTransform)
+              .Children.First(tr => tr is ScaleTransform);
+        }
+
+        private TranslateTransform GetTranslateTransform(UIElement element)
+        {
+            return (TranslateTransform)((TransformGroup)element.RenderTransform)
+              .Children.First(tr => tr is TranslateTransform);
+        }
+
+        /// <summary>
+        /// Function to display labelled ROI's from imported datasheet which stored in class  
+        /// </summary>
+        public void GetRegionofInterestOnImage(ImageListBox curImageBox)
+        {
+            if (drawingSurface.Children.Count > 1)
+                drawingSurface.Children.RemoveRange(1, drawingSurface.Children.Count - 1);
+
+            for (int i = 0; i < curImageBox.ListImageClass.Count; i++)
+            {
+                ImageClass curClassAttribute = curImageBox.ListImageClass[i];
+                //Shape[] ROIShape = GetROIShape(curClassAttribute);
+                Shape ROIShape = GetROIShapeForAugmentation(curClassAttribute);
+                curClassAttribute.DrawShape = ROIShape;
+
+                Label ROILabel = GetROILabel(curClassAttribute);
+                curClassAttribute.DrawLabel = ROILabel;
+                drawingSurface.Children.Insert(1, ROILabel);
+                drawingSurface.Children.Insert(1, ROIShape);
+            }
+        }
+
+        public Label GetROILabel(ImageClass curClassAttribute)
+        {
+            Label ROILabel = new Label
+            {
+                Content = curClassAttribute.ClassAlias,
+                Foreground =/* Brushes.GreenYellow, // */curClassAttribute.HighLightStroke,
+                Height = 32,
+                FontSize = 20,
+                Background = Brushes.Transparent,
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Left
+            };
+
+            double x = 0, y = 0;
+            if (curClassAttribute.Shape == EnumSelectedShape.Rectangle || curClassAttribute.Shape == EnumSelectedShape.Circle)
+            {
+                x = curClassAttribute.XCoordinate;
+                y = curClassAttribute.YCoordinate;
+            }
+            else if (curClassAttribute.Shape == EnumSelectedShape.Polyline)
+            {
+                x = curClassAttribute.All_Points_X.Count > 0 ? curClassAttribute.All_Points_X.First() : 0;
+                y = curClassAttribute.All_Points_Y.Count > 0 ? curClassAttribute.All_Points_Y.First() : 0;
+            }
+
+            Canvas.SetLeft(ROILabel, x - 5);
+            Canvas.SetTop(ROILabel, y - (ROILabel.Height - 4));
+
+            return ROILabel;
+        }
+
+        public Shape[] GetROIShape(ImageClass curClassAttribute)
+        {
+            List<Shape> listShapes = new List<Shape>();
+            Shape getShape = null;
+
+            PointCollection getPolyPoints = new PointCollection();
+            if (curClassAttribute.Shape == EnumSelectedShape.Rectangle)
+            {
+                Rectangle selRect = new Rectangle();
+                getShape = selRect;
+            }
+            else if (curClassAttribute.Shape == EnumSelectedShape.Circle)
+            {
+                Ellipse selCircle = new Ellipse();
+                getShape = selCircle;
+            }
+            else if (curClassAttribute.Shape == EnumSelectedShape.Polyline)
+            {
+                Polyline selPolyline = new Polyline();
+                getPolyPoints = new PointCollection();
+                selPolyline.Points = getPolyPoints;
+                getShape = selPolyline;
+            }
+
+            //getShape.Stroke = Brushes.Red;
+            getShape.Stroke = curClassAttribute.HighLightStroke;
+            getShape.StrokeThickness = ShapeStrokeThickness;
+            getShape.StrokeLineJoin = PenLineJoin.Round;
+            getShape.StrokeStartLineCap = PenLineCap.Round;
+            getShape.StrokeEndLineCap = PenLineCap.Round;
+            getShape.Fill = Brushes.Transparent;
+
+            ToolTip tt = new ToolTip();
+            tt.StaysOpen = true;
+
+            if (getShape.DependencyObjectType.Name == "Rectangle")
+            {
+                double X = curClassAttribute.XCoordinate;
+                double Y = curClassAttribute.YCoordinate;
+                double Width = curClassAttribute.Width;
+                double Height = curClassAttribute.Height;
+
+                Canvas.SetLeft(getShape, X);
+                Canvas.SetTop(getShape, Y);
+                getShape.Width = Width;
+                getShape.Height = Height;
+
+                if (!string.IsNullOrEmpty(curClassAttribute.Score))
+                    tt.Content = curClassAttribute.ClassAlias + "\nScore : " + curClassAttribute.Score;
+                else
+                    tt.Content = curClassAttribute.ClassAlias;
+
+                listShapes.Add(getShape);
+            }
+            else if (getShape.DependencyObjectType.Name == "Ellipse")
+            {
+                int rotation = curClassAttribute.Rotation;
+                double rx = curClassAttribute.Width;
+                double ry = curClassAttribute.Height;
+                double x = curClassAttribute.XCoordinate;
+                double y = curClassAttribute.YCoordinate;
+
+                double nWidth = rx * 2;
+                double nHeight = ry * 2;
+                double nLeft = (x - nWidth / 2);
+                double nTop = (y - nHeight / 2);
+                double angle = rotation;
+
+                getShape = new Rectangle();
+                getShape.Width = nWidth;
+                getShape.Height = nHeight;
+                Canvas.SetLeft(getShape, nLeft);
+                Canvas.SetTop(getShape, nTop);
+                //rect.RenderTransform = new RotateTransform(angle, x, y);
+                getShape.RenderTransform = new RotateTransform(angle, rx, ry);
+
+                //getShape.Stroke = Brushes.Red;
+                getShape.Stroke = curClassAttribute.HighLightStroke;
+                getShape.StrokeThickness = 5;
+                getShape.StrokeLineJoin = PenLineJoin.Round;
+                getShape.StrokeStartLineCap = PenLineCap.Round;
+                getShape.StrokeEndLineCap = PenLineCap.Round;
+                getShape.Fill = Brushes.Transparent;
+
+                string strRectToolTip = "X: " + x.ToString() + "\nY: " + y.ToString() + "\nRX: " + rx.ToString() + "\nRY: " + ry.ToString() + "\nRot: " + rotation.ToString();
+                tt.Content = strRectToolTip;
+                listShapes.Add(getShape);
+            }
+            else if (getShape.DependencyObjectType.Name == "Polyline")
+            {
+                List<double> all_points_x = curClassAttribute.All_Points_X;
+                List<double> all_points_y = curClassAttribute.All_Points_Y;
+                for (int index = 0; index < all_points_x.Count; index++)
+                {
+                    getPolyPoints.Add(new Point(all_points_x[index], all_points_y[index]));
+                }
+
+                Shape boundShape = new Rectangle();
+                boundShape.Width = curClassAttribute.Width;
+                boundShape.Height = curClassAttribute.Height;
+                Canvas.SetLeft(boundShape, curClassAttribute.XCoordinate);
+                Canvas.SetTop(boundShape, curClassAttribute.YCoordinate);
+
+                boundShape.Stroke = Brushes.Blue;
+                boundShape.StrokeThickness = 1;
+                boundShape.StrokeLineJoin = PenLineJoin.Round;
+                boundShape.StrokeStartLineCap = PenLineCap.Round;
+                boundShape.StrokeEndLineCap = PenLineCap.Round;
+                boundShape.Fill = Brushes.Transparent;
+
+                if (!string.IsNullOrEmpty(curClassAttribute.Score))
+                    tt.Content = curClassAttribute.ClassAlias + "\nScore : " + curClassAttribute.Score;
+                else
+                    tt.Content = curClassAttribute.ClassAlias;
+                listShapes.Add(getShape);
+                listShapes.Add(boundShape);
+            }
+
+            tt.Foreground = curClassAttribute.HighLightStroke;
+            tt.FontStyle = FontStyles.Italic;
+            getShape.ToolTip = tt;
+            return listShapes.ToArray();
+        }
+
+        public Shape GetROIShapeForAugmentation(ImageClass curClassAttribute)
+        {
+            Shape getShape = null;
+            PointCollection getPolyPoints = new PointCollection();
+            if (curClassAttribute.Shape == EnumSelectedShape.Rectangle)
+            {
+                Rectangle selRect = new Rectangle();
+                getShape = selRect;
+            }
+            else if (curClassAttribute.Shape == EnumSelectedShape.Circle)
+            {
+                Ellipse selCircle = new Ellipse();
+                getShape = selCircle;
+            }
+            else if (curClassAttribute.Shape == EnumSelectedShape.Polyline)
+            {
+                Polyline selPolyline = new Polyline();
+                getPolyPoints = new PointCollection();
+                selPolyline.Points = getPolyPoints;
+                getShape = selPolyline;
+            }
+
+            //getShape.Stroke = Brushes.Red;
+            getShape.Stroke = curClassAttribute.HighLightStroke;
+            getShape.StrokeThickness = ShapeStrokeThickness;
+            getShape.StrokeLineJoin = PenLineJoin.Round;
+            getShape.StrokeStartLineCap = PenLineCap.Round;
+            getShape.StrokeEndLineCap = PenLineCap.Round;
+            getShape.Fill = Brushes.Transparent;
+
+            ToolTip tt = new ToolTip();
+            tt.StaysOpen = true;            
+
+            if (getShape.DependencyObjectType.Name == "Rectangle")
+            {
+                double X = curClassAttribute.XCoordinate;
+                double Y = curClassAttribute.YCoordinate;
+                double Width = curClassAttribute.Width;
+                double Height = curClassAttribute.Height;
+
+                Canvas.SetLeft(getShape, X);
+                Canvas.SetTop(getShape, Y);
+                getShape.Width = Width;
+                getShape.Height = Height;
+
+                string score = curClassAttribute.Score != null ? curClassAttribute.Score : "";
+                if (curClassAttribute.Score != null)
+                    tt.Content = curClassAttribute.ClassAlias + "\nScore : " + curClassAttribute.Score;
+                else
+                    tt.Content = curClassAttribute.ClassAlias;
+            }
+            else if (getShape.DependencyObjectType.Name == "Ellipse")
+            {
+                int rotation = curClassAttribute.Rotation;
+                double rx = curClassAttribute.Width;
+                double ry = curClassAttribute.Height;
+                double x = curClassAttribute.XCoordinate;
+                double y = curClassAttribute.YCoordinate;
+
+                //double nWidth = rx * 2;
+                //double nHeight = ry * 2;
+                //double nLeft = (x - nWidth / 2);
+                //double nTop = (y - nHeight / 2);
+                //double angle = rotation;
+
+                //getShape = new Rectangle();
+                //getShape.Width = nWidth;
+                //getShape.Height = nHeight;
+                //Canvas.SetLeft(getShape, nLeft);
+                //Canvas.SetTop(getShape, nTop);
+                ////rect.RenderTransform = new RotateTransform(angle, x, y);
+                //getShape.RenderTransform = new RotateTransform(angle, rx, ry);
+
+                getShape.Width = rx;
+                getShape.Height = ry;
+                Canvas.SetLeft(getShape, x);
+                Canvas.SetTop(getShape, y);
+
+                //getShape.Stroke = Brushes.Red;
+                //getShape.Stroke = curClassAttribute.HighLightStroke;
+                //getShape.StrokeThickness = 5;
+                //getShape.StrokeLineJoin = PenLineJoin.Round;
+                //getShape.StrokeStartLineCap = PenLineCap.Round;
+                //getShape.StrokeEndLineCap = PenLineCap.Round;
+                //getShape.Fill = Brushes.Transparent;
+
+                //string strRectToolTip = "X: " + x.ToString() + "\nY: " + y.ToString() + "\nRX: " + rx.ToString() + "\nRY: " + ry.ToString() + "\nRot: " + rotation.ToString();
+                //tt.Content = strRectToolTip;
+
+                string score = curClassAttribute.Score != null ? curClassAttribute.Score : "";
+                if (curClassAttribute.Score != null)
+                    tt.Content = curClassAttribute.ClassAlias + "\nScore : " + curClassAttribute.Score;
+                else
+                    tt.Content = curClassAttribute.ClassAlias;
+            }
+            else if (getShape.DependencyObjectType.Name == "Polyline")
+            {
+                List<double> all_points_x = curClassAttribute.All_Points_X;
+                List<double> all_points_y = curClassAttribute.All_Points_Y;
+                for (int index = 0; index < all_points_x.Count; index++)
+                {
+                    getPolyPoints.Add(new Point(all_points_x[index], all_points_y[index]));
+                }
+
+                string score = curClassAttribute.Score != null ? curClassAttribute.Score : "";
+                if (curClassAttribute.Score != null)
+                    tt.Content = curClassAttribute.ClassAlias + "\nScore : " + curClassAttribute.Score;
+                else
+                    tt.Content = curClassAttribute.ClassAlias;
+            }
+
+            tt.Foreground = curClassAttribute.HighLightStroke;
+            tt.FontStyle = FontStyles.Italic;
+            getShape.ToolTip = tt;
+            return getShape;
+        }
+
+        /// <summary>
+        /// Function to Load labelled ROI's coordinates and class from CSV datasheet Image class 
+        /// and use in application to display labelled regions   
+        /// </summary>
+        public bool LoadProcessedImageFromCSV(bool IsPredictedData = false)
+        {
+            List<string[]> tempDictList = new List<string[]>();
+            DictColHeaders = new Dictionary<string, string[]>();
+
+            foreach (var curItem in settings.dictEVSupervisorClass)
+                tempDictList.Add(new string[3] { curItem.Key.ToString(), curItem.Value, curItem.Value.Split('(', ')').Length > 1 ? curItem.Value.Split('(', ')')[1] : curItem.Value.Split('(', ')')[0] });
+
+            for (int i = 0; i < settings.ImportFilePath.Length; i++)
+            {
+                List<string[]> listCSVData = new List<string[]>();
+                ListDatasheetImportData.Add(new ImportDatasheetData(settings.ImportFilePath[i]) {
+                    ListImportData = listCSVData
+                });
+
+                List<string> listCSVlines = File.ReadAllLines(settings.ImportFilePath[i]).ToList();
+                DictColHeaders[settings.ImportFilePath[i]] = GetColumnHeaderNames(listCSVlines);
+
+                string[] split = listCSVlines[0].Split(',');
+                if (!IsValidProjectDataSheet(split))
+                {
+                    System.Windows.MessageBox.Show("Project with architecture does not match with Project in CSV file selected..!\nPlease Select proper CSV file or change Project in File->Settings Configuration window..", "File Import Failed", MessageBoxButton.OK, MessageBoxImage.Warning,
+                            MessageBoxResult.None, System.Windows.MessageBoxOptions.DefaultDesktopOnly);
+                    return false;
+                }
+
+                if (split.Contains("file_size") && split.Length > 6)
+                    listCSVlines = PrevFormatListValues(listCSVlines);
+                else
+                    listCSVlines = CurrentFormatListValues(listCSVlines);
+
+                Dispatcher.Invoke(() => progressBar.pbStatus.Maximum = listCSVlines.Count);
+                for (int lineCount = 0; lineCount < listCSVlines.Count; lineCount++)
+                {
+                    Dispatcher.Invoke(() => progressBar.pbStatus.Value = lineCount);
+                    string[] lineSplit = Regex.Split(listCSVlines[lineCount], @"(?<!,[^[]+\{[^}]+),");
+                    listCSVData.Add(lineSplit);
+                    lineSplit = lineSplit.Select(item => Regex.Replace(item, @"[""{}]", "")).ToArray();
+                    if (!IsValidCSVLine(lineSplit) || IsHeaderLine(listCSVlines[lineCount]))
+                        continue;
+
+                    string[] arrShapeAttribute = Regex.Split(lineSplit[2], @",(?=[^\]]*(?:\[|$))");
+                    if (arrShapeAttribute.Length < 3)
+                        continue;
+
+                    string strTempShape = arrShapeAttribute[0].Substring(arrShapeAttribute[0].LastIndexOf(':') + 1).ToLower();
+
+                    //to check whether Loaded class file type and imported CSV file having same Shape type or not
+                    string strClassType = strTempShape.Contains("rect") ? "Rectangle" : strTempShape.Contains("poly") ? "Polyline" :
+                                        strTempShape.Contains("circ") ? "Circle" : "None";
+
+                    EnumClassType enumClassTemp = (EnumClassType)Enum.Parse(typeof(EnumClassType), strClassType, true);
+                    
+                    if (settings.ClassType != EnumClassType.Any && settings.ClassType != enumClassTemp && enumClassTemp != EnumClassType.None)
+                    {
+                        if(settings.ClassType != EnumClassType.Rectangle && enumClassTemp != EnumClassType.Circle)
+                        {
+                            System.Windows.MessageBox.Show("Class file does not match with Datasheet selected..!\n Please Go to File->Settings to change Class file Type", "File Import Failed", MessageBoxButton.OK, MessageBoxImage.Warning,
+                                            MessageBoxResult.None, System.Windows.MessageBoxOptions.DefaultDesktopOnly);
+                            return false;
+                        }
+                    }
+                    //----------------------
+
+                    string ImageName = lineSplit[0];
+                    char strImageType = ImageName.Contains(settings.SinglePhase) ? 'S' : ImageName.Contains(settings.PhaseContrast) ? 'P' : ' ';
+                    ImageListBox curImageBox = ProcessedImageBox.Find(item => item.ImageBoxName == ImageName);
+                    string ClassName;
+                    string ClassID = Regex.Match(lineSplit[3], @"\b[:]\s*[0-9]+").ToString().Replace(":", "").Trim();
+                    string ClassFolderName = Regex.Match(lineSplit[3], @"\b[:]\s*[A-Za-z]+").ToString().Replace(":", "").Trim();
+                    if (ClassID == string.Empty || ClassFolderName == string.Empty)
+                        continue;
+
+                    ClassFolderStat curclassFolder = ListClassFolderStat.FirstOrDefault(item => item.ClassAliasName.ToUpper() == ClassFolderName.ToUpper() && item.ImportDatasheetName == settings.ImportFilePath[i].Trim());
+                    if (curclassFolder == null)
+                    {
+                        ListClassFolderStat.Add(new ClassFolderStat
+                        {
+                            ImportDatasheetName = settings.ImportFilePath[i].Trim(),
+                            ClassCount = 1,
+                            ClassAliasName = ClassFolderName,
+                            ClassID = ClassID,
+                            SingleSpotCount = strImageType == 'S' ? 1 : 0,
+                            PhaseContrastCount = strImageType == 'P' ? 1 : 0
+                        });
+                    }
+                    else
+                    {
+                        curclassFolder.ClassCount++;
+                        if (strImageType == 'S')
+                            curclassFolder.SingleSpotCount++;
+                        else if (strImageType == 'P')
+                            curclassFolder.PhaseContrastCount++;
+                    }
+
+                    //if (int.Parse(ClassID) <= settings.classCount)
+                    //    ClassName = settings.dictEVSupervisorClass.Keys.ToList().Contains(int.Parse(ClassID)) ? settings.dictEVSupervisorClass[int.Parse(ClassID)].ToString() : ClassFolderName + "(" + ClassFolderName + ")";
+                    //else
+                    //    ClassName = ClassFolderName + "(" + ClassFolderName + ")";
+
+                    var tempClassItem = tempDictList.FirstOrDefault(temp => temp[2] == ClassFolderName);
+                    if (tempClassItem != null)
+                        ClassName = tempClassItem[1];
+                    else
+                        ClassName = "Unknown Class" + "(" + ClassFolderName + ")";
+
+                    EnumSelectedShape shape = strClassType == "Rectangle" ? EnumSelectedShape.Rectangle : strClassType == "Circle" ?
+                                    EnumSelectedShape.Circle : strClassType == "Polyline" ? EnumSelectedShape.Polyline : EnumSelectedShape.Null;
+
+                    ImageClass curImageclass = new ImageClass(ClassID, ClassName);
+                    curImageclass.Shape = shape;
+                    curImageclass.ClassAlias = ClassFolderName;
+                    double X = 0, Y = 0, Width = 0, Height = 0;
+                    List<double> all_point_x = new List<double>();
+                    List<double> all_point_y = new List<double>();
+
+                    if (shape == EnumSelectedShape.Rectangle || shape == EnumSelectedShape.Circle)
+                    {
+                        X = Convert.ToDouble(arrShapeAttribute[1].Substring(arrShapeAttribute[1].LastIndexOf(':') + 1));
+                        Y = Convert.ToDouble(arrShapeAttribute[2].Substring(arrShapeAttribute[2].LastIndexOf(':') + 1));
+                        Width = Convert.ToDouble(arrShapeAttribute[3].Substring(arrShapeAttribute[3].LastIndexOf(':') + 1));
+                        Height = Convert.ToDouble(arrShapeAttribute[4].Substring(arrShapeAttribute[4].LastIndexOf(':') + 1));
+
+                        curImageclass.ShapeCoordinates = "{\"name\":\"" + strTempShape.Substring(strTempShape.LastIndexOf(':') + 1) + "\", \"x\":" + X + ", \"y\": " + Y +
+                                                        ", \"width\": " + Width + ", \"height\": " + Height + " }";
+                    }
+
+                    else if (shape == EnumSelectedShape.Polyline)
+                    {
+                        string subString_x = arrShapeAttribute[1].Substring(arrShapeAttribute[1].LastIndexOf(':') + 1).Replace("[", "").Replace("]", "");
+                        all_point_x = subString_x.Split(',').Select(double.Parse).ToList();
+
+                        string subString_y = arrShapeAttribute[2].Substring(arrShapeAttribute[2].LastIndexOf(':') + 1).Replace("[", "").Replace("]", "");
+                        all_point_y = subString_y.Split(',').Select(double.Parse).ToList();
+
+                        curImageclass.ShapeCoordinates = "{\"name\":\"" + strTempShape.Substring(strTempShape.LastIndexOf(':') + 1) + "\", \"all_points_x\": [" +
+                                            String.Join(", ", all_point_x) + "], \"all_points_y\": [" + String.Join(", ", all_point_y) + "] }";
+                    }
+
+                    curImageclass.XCoordinate = X;
+                    curImageclass.YCoordinate = Y;
+                    curImageclass.Width = Width;
+                    curImageclass.Height = Height;
+                    curImageclass.All_Points_X = all_point_x;
+                    curImageclass.All_Points_Y = all_point_y;
+
+                    bool reviewed = false;
+                    if (lineSplit.Length > 4 && lineSplit[4] != "")
+                        reviewed = lineSplit[4] == "Yes" ? true : false;
+
+                    curImageclass.Reviewed = reviewed;
+                    curImageclass.DataTypeMode = IsPredictedData ? EnumModeData.PredictedData : EnumModeData.GroundTruthData;
+                    curImageclass.ImportDatasheetName = settings.ImportFilePath[i];
+
+                    if (curImageBox == null)
+                    {
+                        curImageBox = new ImageListBox(ImageName);
+                        ProcessedImageBox.Add(curImageBox);
+                    }
+
+                    Dispatcher.Invoke(() => { curImageBox.ListImageClass.Add(curImageclass); });
+                }
+                settings.nImportFileRecordCount[i] = listCSVlines.Count;                
+            }
+
+            TotalDataSheet = settings.ImportFilePath.Length;
+            TotalRecordFound = settings.nImportFileRecordCount.Sum();
+            TotalViolationFound = 0;
+            return true;
+        }
+
+        /// <summary>
+        /// Function to Load labelled ROI's coordinates and class from XML files into 
+        /// Image class and use in application to display labelled regions 
+        /// </summary>
+        public bool LoadProcessedImageFromXML()
+        {
+            string[] arrAttributes = { "annotation", "filename", "object", "bndbox", "name" };
+            bool bIsChecked = false;
+            string strProjectname = settings.dictProjectList.ContainsKey(settings.CurrentProject) ? settings.dictProjectList[settings.CurrentProject] : "";
+
+            for (int i = 0; i < settings.ImportFilePath.Length; i++)
+            {
+                string[] arrXMLFiles = Directory.GetFiles(settings.ImportFilePath[i], "*.xml", SearchOption.TopDirectoryOnly);
+
+                Dispatcher.Invoke(() => progressBar.pbStatus.Maximum = arrXMLFiles.Length);
+                for (int count = 0; count < arrXMLFiles.Length; count++)
+                {
+                    Dispatcher.Invoke(() => progressBar.pbStatus.Value = count);
+
+                    XDocument xmlDoc = XDocument.Load(arrXMLFiles[count], LoadOptions.None);
+                    var litXMLElements = xmlDoc.Descendants().Select(temp => temp.Name.LocalName);
+                    if (arrAttributes.Except(litXMLElements).Count() > 0)
+                    {
+                        MessageBox.Show("XML files are not in correct format..! Please select proper XML files to import..", "Error!!", MessageBoxButton.OK,
+                            MessageBoxImage.Error, MessageBoxResult.OK, MessageBoxOptions.DefaultDesktopOnly);
+                        return false;
+                    }
+                    XElement root = xmlDoc.Element("annotation");
+                    string ProjectName = root.Element("source").Value.Trim();
+                    if (!ProjectName.Contains(strProjectname))
+                    {
+                        System.Windows.MessageBox.Show("Project does not match with Project in XML file selected..!\nPlease Select proper XML file or change Project in File->Settings Configuration window..", "File Import Failed", MessageBoxButton.OK, MessageBoxImage.Warning,
+                                MessageBoxResult.None, System.Windows.MessageBoxOptions.DefaultDesktopOnly);
+                        return false;
+                    }
+
+                    if (!litXMLElements.Contains("correction") && !bIsChecked)
+                    {
+                        MessageBoxResult result = MessageBox.Show("Selected XML folder does not contain correction field in files..!\nSelect Yes to continue otherwise No to cancel?", "Warning!!", MessageBoxButton.YesNo,
+                            MessageBoxImage.Warning, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+                        bIsChecked = true;
+                        if (result == MessageBoxResult.No)
+                            return false;
+                    }
+
+                    string fileName = root.Element("filename").Value.Trim();
+                    char strImageType = fileName.Contains(settings.SinglePhase) ? 'S' : fileName.Contains(settings.PhaseContrast) ? 'P' : ' ';
+
+                    ImageListBox curImageBox = ProcessedImageBox.Find(item => item.ImageBoxName == fileName);
+
+                    if (curImageBox == null)
+                    {
+                        curImageBox = new ImageListBox(fileName);
+                        ProcessedImageBox.Add(curImageBox);
+                    }
+
+                    IEnumerable<XElement> objects = root.Descendants("object");
+                    foreach (XElement ObjElement in objects)
+                    {
+                        XElement boundBox = ObjElement.Element("bndbox");
+                        string strXname = (boundBox.FirstNode as XElement).Name.LocalName;
+
+                        string strClassType = strXname.Contains("xmin") ? "Rectangle" : strXname.Contains("xpoints") ? "Polyline" : "None";
+
+                        //Added to check whether Loaded class file type and imported Json file having Shape type is same or not
+                        EnumClassType enumClassTemp = (EnumClassType)Enum.Parse(typeof(EnumClassType), strClassType, true);
+                        if (settings.ClassType != EnumClassType.Any && settings.ClassType != enumClassTemp && enumClassTemp != EnumClassType.None)
+                        {
+                            System.Windows.MessageBox.Show("Class file does not match with Datasheet selected..!\n Please Go to File->Settings to change Class file Type", "File Import Failed", MessageBoxButton.OK, MessageBoxImage.Warning,
+                                            MessageBoxResult.None, System.Windows.MessageBoxOptions.DefaultDesktopOnly);
+                            return false;
+                        }
+
+                        string strClassAlias = ObjElement.Element("name").Value;
+                        if (strClassAlias == string.Empty)
+                            continue;
+
+                        string strClassID = "-1";
+                        string strClassName = "";
+                        foreach (var strClass in settings.dictEVSupervisorClass)
+                        {
+                            if ((strClass.Value.Split('(', ')').Length > 1 ? strClass.Value.Split('(', ')')[1].ToUpper() : "") == strClassAlias.ToUpper())
+                            {
+                                strClassID = strClass.Key.ToString();
+                                strClassName = strClass.Value.ToString();
+                                break;
+                            }
+                        }
+
+                        EnumSelectedShape shape = strClassType == "Rectangle" ? EnumSelectedShape.Rectangle : strClassType == "Circle" ?
+                                    EnumSelectedShape.Circle : strClassType == "Polyline" ? EnumSelectedShape.Polyline : EnumSelectedShape.Null;
+
+                        strClassName = string.IsNullOrEmpty(strClassName) ? strClassAlias + "(" + strClassAlias + ")" : strClassName;
+
+                        ClassFolderStat curclassFolder = ListClassFolderStat.FirstOrDefault(item => item.ClassAliasName.ToUpper() == strClassAlias.ToUpper() && item.ImportDatasheetName == settings.ImportFilePath[i].Trim());
+                        if (curclassFolder == null)
+                        {
+                            ListClassFolderStat.Add(new ClassFolderStat
+                            {
+                                ImportDatasheetName = settings.ImportFilePath[i].Trim(),
+                                ClassCount = 1,
+                                ClassAliasName = strClassAlias,
+                                ClassID = strClassID,
+                                SingleSpotCount = strImageType == 'S' ? 1 : 0,
+                                PhaseContrastCount = strImageType == 'P' ? 1 : 0
+                            });
+                        }
+                        else
+                        {
+                            curclassFolder.ClassCount++;
+                            if (strImageType == 'S')
+                                curclassFolder.SingleSpotCount++;
+                            else if (strImageType == 'P')
+                                curclassFolder.PhaseContrastCount++;
+                        }
+
+                        ImageClass curImageclass = new ImageClass(strClassID, strClassName);
+                        curImageclass.Shape = shape;
+                        curImageclass.ClassAlias = strClassAlias;
+                        string shapeName = strClassType == "Rectangle" ? "rect" : strClassType == "Circle" ? "circ" : strClassType == "Polyline" ? "poly" : "";
+
+                        double X = 0, Y = 0, Width = 0, Height = 0;
+                        List<double> all_point_x = new List<double>();
+                        List<double> all_point_y = new List<double>();
+
+                        if (shape == EnumSelectedShape.Rectangle || shape == EnumSelectedShape.Circle)
+                        {
+                            X = Convert.ToDouble(boundBox.Element("xmin").Value);
+                            Y = Convert.ToDouble(boundBox.Element("ymin").Value);
+                            double Xmax = Convert.ToDouble(boundBox.Element("xmax").Value);
+                            double Ymax = Convert.ToDouble(boundBox.Element("ymax").Value);
+                            Width = Xmax - X;
+                            Height = Ymax - Y;
+
+                            curImageclass.ShapeCoordinates = "{\"name\":\"" + shapeName + "\", \"x\":" + X + ", \"y\": " + Y +
+                                                            ", \"width\": " + Width + ", \"height\": " + Height + " }";
+                        }
+
+                        else if (shape == EnumSelectedShape.Polyline)
+                        {
+                            var subString_x = boundBox.Element("xpoints").Value;
+                            all_point_x = subString_x.Split(',').Select(double.Parse).ToList();
+
+                            var subString_y = boundBox.Element("ypoints").Value;
+                            all_point_y = subString_y.Split(',').Select(double.Parse).ToList();
+
+                            curImageclass.ShapeCoordinates = "{\"name\":\"" + shapeName + "\", \"all_points_x\": [" +
+                                                String.Join(", ", all_point_x) + "], \"all_points_y\": [" + String.Join(", ", all_point_y) + "] }";
+                        }
+
+                        curImageclass.XCoordinate = X;
+                        curImageclass.YCoordinate = Y;
+                        curImageclass.Width = Width;
+                        curImageclass.Height = Height;
+                        curImageclass.All_Points_X = all_point_x;
+                        curImageclass.All_Points_Y = all_point_y;
+
+                        bool bReviewed = false;
+                        XElement reviewElement = ObjElement.Elements().FirstOrDefault(item => item.Name.LocalName == "correction");
+                        if (reviewElement != null)
+                            bReviewed = reviewElement.Value == "Yes" ? true : false;
+
+                        curImageclass.Reviewed = bReviewed;
+                        curImageclass.ImportDatasheetName = settings.ImportFilePath[i];
+                        curImageBox.ListImageClass.Add(curImageclass);
+                    }
+                }
+
+                settings.nImportFileRecordCount[i] = arrXMLFiles.Length;
+            }
+
+            TotalDataSheet = settings.ImportFilePath.Length;
+            TotalRecordFound = settings.nImportFileRecordCount.Sum();
+            TotalViolationFound = 0;
+            return true;
+        }
+
+        /// <summary>
+        /// Function to check whether string in valid CSV line or not 
+        /// </summary>
+        public bool IsValidCSVLine(string[] strCSVLineSplit)
+        {
+            if (strCSVLineSplit.Length == 1)
+                return false;
+
+            int m;
+
+            if(settings.ClassType == EnumClassType.Segregation)
+            {
+                if ((strCSVLineSplit.Length > 1 ? (Int32.TryParse(strCSVLineSplit[1], out m) ? m : 0) : 0) == 0 || string.IsNullOrEmpty(strCSVLineSplit.Length > 1 ? strCSVLineSplit[2] : ""))
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                if ((strCSVLineSplit.Length > 1 ? (Int32.TryParse(strCSVLineSplit[1], out m) ? m : 0) : 0) == 0 ||
+                string.IsNullOrEmpty(strCSVLineSplit.Length > 1 ? strCSVLineSplit[2] : "") ||
+                string.IsNullOrEmpty(strCSVLineSplit.Length > 2 ? strCSVLineSplit[3] : ""))
+                {
+                    return false;
+                }
+            }            
+
+            return true;
+        }
+
+        /// <summary>
+        /// Function to check whether CSV Line is contains Header columns or not 
+        /// </summary>
+        public bool IsHeaderLine(string strCSVLine)
+        {
+            string[] target = { "filename", "region_count", "Date", "CSV Datasheet", "Image Name", "row_number" };//the name of the column to skip
+            if (strCSVLine.Split(',').Length == 0 || string.IsNullOrWhiteSpace(strCSVLine) || target.ToList().Exists(temp => strCSVLine.Contains(temp)))
+                return true;
+
+            return false;
+        }
+
+        public bool IsColHeaderLine(string[] strCSVLine)
+        {
+            string[] colHeader = { "filename", "Date", "CSV", "Image Name" };//the name of the column to skip
+            if (strCSVLine.Length == 0 || strCSVLine.Where(temp => !string.IsNullOrEmpty(temp)).Count() == 0 || colHeader.ToList().Exists(temp => strCSVLine[0].Contains(temp)))
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Function to check whether Import datatsheet is in project selected or not 
+        /// </summary>
+        public bool IsValidProjectDataSheet(string[] strLineSplit)
+        {
+            string strProjectname = settings.dictProjectList.ContainsKey(settings.CurrentProject) ? settings.dictProjectList[settings.CurrentProject] : "";
+            string[] arrSplitLine = strLineSplit.Where(temp => !string.IsNullOrWhiteSpace(temp)).ToArray();
+            if (arrSplitLine.Length > 0 && arrSplitLine[0].Contains("Date"))
+            {
+                if (arrSplitLine.Length == 1 && settings.CurrentProject != "P1")
+                    return false;
+                else if (arrSplitLine.Length > 1 && arrSplitLine[1].Contains("Project"))
+                {
+                    string strTempProject = arrSplitLine[1].Split(':').Length > 1 ? arrSplitLine[1].Split(':')[1] : "";
+                    if (!strTempProject.Trim().Contains(strProjectname))
+                        return false;
+
+                    if (/*settings.ClassType == EnumClassType.Segregation && */arrSplitLine.Length > 2 && arrSplitLine[2].Contains("Type"))
+                    {
+                        string strType = arrSplitLine[2].Split(':').Length > 1 ? arrSplitLine[2].Split(':')[1] : "";
+                        if (settings.ClassType.ToString() != strType.Trim())
+                            return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Function to Load labelled ROI's coordinates and class from JSON files into 
+        /// Image class and use in application to display labelled regions 
+        /// </summary>
+        public bool LoadProcessedImageFromJSON()
+        {
+            try
+            {
+                string jsonLines = "";
+                string strProjectname = settings.dictProjectList.ContainsKey(settings.CurrentProject) ? settings.dictProjectList[settings.CurrentProject] : "";
+
+                for (int index = 0; index < settings.ImportFilePath.Length; index++)
+                {
+                    using (StreamReader reader = new StreamReader(System.IO.File.OpenRead(settings.ImportFilePath[index])))
+                    {
+                        jsonLines = reader.ReadToEnd();
+                        JObject jsonObj = JsonConvert.DeserializeObject(jsonLines) as JObject;
+                        List<object> listObject = (jsonObj.Children().Values() as IEnumerable<object>).ToList();
+                        int nRecordCount = listObject.Count;
+
+                        Dispatcher.Invoke(() => progressBar.pbStatus.Maximum = listObject.Count);
+                        for (int cnt = 0; cnt < listObject.Count; cnt++)
+                        {
+                            Dispatcher.Invoke(() => progressBar.pbStatus.Value = cnt);
+
+                            if (cnt == 0)
+                            {                                
+                                var objectType = listObject[0].GetType();
+                                string strProject = "";
+                                if (objectType.Name == "JValue")
+                                {
+                                    var temp = (JValue)listObject[0];
+                                    strProject = temp.Value.ToString();
+                                    nRecordCount--;
+                                }
+                                else if(objectType.Name == "JObject")
+                                {
+                                    if ((listObject[0] as JObject).Path == "info")
+                                    {
+                                        return LoadProcessedImageFromCocoModelJSON();
+                                    }
+                                }
+                                else
+                                    strProject = settings.dictProjectList["P1"];
+
+                                if (!strProjectname.Contains(strProject))
+                                {
+                                    System.Windows.MessageBox.Show("Project does not match with Project in JSON file selected..!\nPlease Select proper JSON file or change Project in File->Settings Configuration window..", "File Import Failed", MessageBoxButton.OK, MessageBoxImage.Warning,
+                                            MessageBoxResult.None, System.Windows.MessageBoxOptions.DefaultDesktopOnly);
+                                    return false;
+                                }
+                                continue;
+                            }
+
+                            List<object> tempImage = ((IEnumerable<object>)listObject[cnt]).ToList();
+                            if (tempImage.Count > 1 && ((JProperty)tempImage[1]).Value.Count() == 0)
+                                continue;
+
+                            string strTemp = tempImage[0].ToString();
+                            string strFileName = strTemp.Substring(strTemp.LastIndexOf(":") + 2).Replace("\"", "");
+                            char strImageType = strFileName.Contains(settings.SinglePhase) ? 'S' : strFileName.Contains(settings.PhaseContrast) ? 'P' : ' ';
+
+                            ImageListBox curImageBox = ProcessedImageBox.Find(item => item.ImageBoxName == strFileName);
+
+                            if (curImageBox == null)
+                            {
+                                curImageBox = new ImageListBox(strFileName);
+                                ProcessedImageBox.Add(curImageBox);
+                            }
+
+                            List<object> listProperty = ((IEnumerable<object>)((JProperty)tempImage[1]).Value).ToList();
+                            int j = 0;
+                            while (j < listProperty.Count)
+                            {
+                                object[] arrObj = ((JObject)listProperty[j]).Children().Values().ToArray();
+                                string strShapeCoord = arrObj[0].ToString().Replace("\n", "").Replace("\r", "");
+                                var jsonShapeAttribute = JsonConvert.DeserializeObject<JsonShapeAttributes>(strShapeCoord);
+
+                                //Added to check whether Loaded class file type and imported Json file having Shape type is same or not
+                                EnumClassType enumClassTemp = jsonShapeAttribute.Shape.ToString() != "" ? (EnumClassType)Enum.Parse(typeof(EnumClassType), jsonShapeAttribute.Shape.ToString(), true) : EnumClassType.None;
+                                if (settings.ClassType != EnumClassType.Any && settings.ClassType != enumClassTemp && enumClassTemp != EnumClassType.None)
+                                {
+                                    System.Windows.MessageBox.Show("Class file does not match with Datasheet selected..!\n Please Go to File->Settings to change Class file Type", "File Import Failed", MessageBoxButton.OK, MessageBoxImage.Warning,
+                                            MessageBoxResult.OK, System.Windows.MessageBoxOptions.DefaultDesktopOnly);
+                                    return false;
+                                }
+                                //--------------------------------
+
+                                string strClass = arrObj[1].ToString().Replace("\n", "").Replace("\r", "");
+                                var jsonClassAttribute = JsonConvert.DeserializeObject<JsonClassAttributes>(strClass);
+
+                                string ClassAliasName = jsonClassAttribute.ClassName.Split('(', ')').Length > 1 ? jsonClassAttribute.ClassName.Split('(', ')')[1] : "";
+                                ClassFolderStat curclassFolder = ListClassFolderStat.FirstOrDefault(item => item.ClassAliasName.ToUpper() == ClassAliasName.ToUpper() && item.ImportDatasheetName == settings.ImportFilePath[index].Trim());
+                                if (curclassFolder == null)
+                                {
+                                    ListClassFolderStat.Add(new ClassFolderStat
+                                    {
+                                        ImportDatasheetName = settings.ImportFilePath[index].Trim(),
+                                        ClassCount = 1,
+                                        ClassAliasName = ClassAliasName,
+                                        ClassID = jsonClassAttribute.ClassIndex,
+                                        SingleSpotCount = strImageType == 'S' ? 1 : 0,
+                                        PhaseContrastCount = strImageType == 'P' ? 1 : 0
+                                    });
+                                }
+                                else
+                                {
+                                    curclassFolder.ClassCount++;
+                                    if (strImageType == 'S')
+                                        curclassFolder.SingleSpotCount++;
+                                    else if (strImageType == 'P')
+                                        curclassFolder.PhaseContrastCount++;
+                                }
+
+                                ImageClass curImageclass = new ImageClass(jsonClassAttribute.ClassIndex, jsonClassAttribute.ClassName);
+                                curImageclass.Shape = jsonShapeAttribute.Shape;
+                                curImageclass.ClassAlias = ClassAliasName;
+                                curImageclass.XCoordinate = jsonShapeAttribute.XCoordinate;
+                                curImageclass.YCoordinate = jsonShapeAttribute.YCoordinate;
+                                curImageclass.Width = jsonShapeAttribute.Width;
+                                curImageclass.Height = jsonShapeAttribute.Height;
+                                curImageclass.All_Points_X = jsonShapeAttribute.All_Points_X == null ? new List<double>() : jsonShapeAttribute.All_Points_X;
+                                curImageclass.All_Points_Y = jsonShapeAttribute.All_Points_Y == null ? new List<double>() : jsonShapeAttribute.All_Points_Y;
+                                string shape = (jsonShapeAttribute.Shape == EnumSelectedShape.Rectangle) ? "rect" : (jsonShapeAttribute.Shape == EnumSelectedShape.Circle) ? "circle" :
+                                    (jsonShapeAttribute.Shape == EnumSelectedShape.Polyline) ? "polyline" : "";
+
+                                if (jsonShapeAttribute.Shape == EnumSelectedShape.Rectangle || jsonShapeAttribute.Shape == EnumSelectedShape.Circle)
+                                {
+                                    curImageclass.ShapeCoordinates = "{\"name\":\"" + shape + "\", \"x\": " + curImageclass.XCoordinate + ", \"y\": " + curImageclass.YCoordinate +
+                                                                    ", \"width\": " + curImageclass.Width + ", \"height\": " + curImageclass.Height + " }";
+                                }
+                                else if (jsonShapeAttribute.Shape == EnumSelectedShape.Polyline)
+                                {
+                                    curImageclass.ShapeCoordinates = "{\"name\":\"" + shape + "\", \"all_points_x\": [" +
+                                            String.Join(", ", curImageclass.All_Points_X) + "], \"all_points_y\": [" + String.Join(", ", curImageclass.All_Points_Y) + "] }";
+                                }
+
+                                bool reviewed = jsonClassAttribute.Review == "Yes" ? true : false;
+                                curImageclass.Reviewed = reviewed;
+                                curImageclass.ImportDatasheetName = settings.ImportFilePath[index];
+
+                                curImageBox.ListImageClass.Add(curImageclass);
+                                j++;
+                            }
+                        }
+                        settings.nImportFileRecordCount[index] = nRecordCount;
+                    }
+                }
+                TotalDataSheet = settings.ImportFilePath.Length;
+                TotalRecordFound = settings.nImportFileRecordCount.Sum();
+                TotalViolationFound = 0;
+
+                return true;
+            }
+
+            catch (Exception ex)
+            {
+                MessageBox.Show("Invalid JSON File", "Error", MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.OK, System.Windows.MessageBoxOptions.DefaultDesktopOnly);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Function to convert imported old format csv to new folmat CSV
+        /// </summary>
+        public List<string> PrevFormatListValues(List<string> listCSVLines)
+        {
+            List<string> listCollected = new List<string>();
+            List<string> listCSVlinesChanged = new List<string>();
+
+            string[] target = { "file_size", "file_attributes", "region_id" };//the name of the column to skip
+            string[] targetPosition = new string[target.Count()]; //this will be the position of the column to remove if it is available in the csv file
+
+            for (int lines = 0; lines < listCSVLines.Count; lines++)
+            {
+                listCollected.Clear();
+                if (lines == 0)
+                {
+                    string[] split = listCSVLines[0].Split(',');
+                    int j = 0;
+                    //to get the position of the column to skip
+                    for (int i = 0; i < split.Length; i++)
+                    {
+                        if (target.Contains(split[i]))
+                        {
+                            targetPosition[j] = i.ToString();
+                            j++;
+                        }
+                    }
+                    continue;
+                }
+
+                string[] lineSplit = Regex.Split(listCSVLines[lines], @"(?<!,[^[]+\{[^}]+),");
+                for (int i = 0; i < lineSplit.Length; i++)
+                {
+                    if (targetPosition != null && targetPosition.Contains(i.ToString())) continue;
+                    listCollected.Add(lineSplit[i]);
+                }
+                listCSVlinesChanged.Add(string.Join(",", listCollected));
+            }
+            return listCSVlinesChanged;
+        }
+
+        /// <summary>
+        /// Function to remove date and header column line from imported CSV
+        /// </summary>
+        public List<string> CurrentFormatListValues(List<string> listCSVLines)
+        {
+            int cnt = 0;
+            string[] target = { "filename", "region_count", "Date", "CSV Datasheet", "Image Name", "row_number" };//the name of the column to skip
+            for (int lines = 0; lines < listCSVLines.Count; lines++)
+            {
+                if (cnt == 5)
+                    break;
+                if (string.IsNullOrWhiteSpace(listCSVLines[lines]) || target.ToList().Exists(temp => listCSVLines[lines].Contains(temp)))
+                {
+                    listCSVLines.RemoveAt(lines);
+                    lines--;
+                }
+                cnt++;
+            }
+            return listCSVLines;
+        }
+
+        /// <summary>
+        /// Function to remove date and header column line from imported CSV
+        /// </summary>
+        public List<string> RemoveSegregationCSVListValues(List<string> listCSVLines)
+        {
+            int cnt = 0;
+            string[] target = { "filename", "Date"};//the name of the column to skip
+            for (int lines = 0; lines < listCSVLines.Count; lines++)
+            {
+                if (cnt == 5)
+                    break;
+                if (string.IsNullOrWhiteSpace(listCSVLines[lines]) || target.ToList().Exists(temp => listCSVLines[lines].Contains(temp)))
+                {
+                    listCSVLines.RemoveAt(lines);
+                    lines--;
+                }
+                cnt++;
+            }
+            return listCSVLines;
+        }
+
+        /// <summary>
+        /// Function to Export Processed Data which contains image name, class attributes and 
+        /// shape attribute into CSV format and save into OUTPUT folder
+        /// </summary>
+        public void SaveCSVFileExportData(object[] arg)
+        {
+            try
+            {
+                bool bIsExportSavedFile = (bool)arg[0];
+                bool bIsMultiExport = (bool)arg[1];
+                bool bIsExportRawFile = (bool)arg[2];
+                string strProjectname = settings.dictProjectList.ContainsKey(settings.CurrentProject) ? settings.dictProjectList[settings.CurrentProject] : "";
+                string strDTNow = DateTime.Now.ToString("ddMMyyyy_HHmmss");
+                string seperator = ",";
+
+                bool bIsRectSave = false;
+                bool bIsPolySave = false;
+                bool bIsCircleSave = false;
+                bool bIsFormatSave = false;
+
+                string strDatePath = settings.CSVExportPath + @"\Output Data\Raw CSV\" + strDTNow;
+                if (bIsExportRawFile)
+                {
+                    string strRectDataPath = strDatePath + "\\Rectangle";
+                    if (!Directory.Exists(strRectDataPath))
+                        Directory.CreateDirectory(strRectDataPath);
+
+                    string strPolyDataPath = strDatePath + "\\Polyline";
+                    if (!Directory.Exists(strPolyDataPath))
+                        Directory.CreateDirectory(strPolyDataPath);
+
+                    string strRectCSVSavePath = System.IO.Path.Combine(strRectDataPath, "rect_" + strDTNow + ".csv");
+                    string strPolyCSVSavePath = System.IO.Path.Combine(strPolyDataPath, "poly_" + strDTNow + ".csv");
+
+                    bool bIsRectFound = ImageMenuList.ToList().Exists(item => item.ImageBox.ListImageClass.ToList().Exists(a => a.Shape == EnumSelectedShape.Rectangle));
+                    bool bIsPolyFound = ImageMenuList.ToList().Exists(item => item.ImageBox.ListImageClass.ToList().Exists(a => a.Shape == EnumSelectedShape.Polyline));
+
+                    this.Dispatcher.Invoke(() =>
+                    {
+                        System.Windows.Forms.SaveFileDialog saveFileDialog = new System.Windows.Forms.SaveFileDialog();
+                        if(bIsRectFound)
+                        {
+                            saveFileDialog.InitialDirectory = strRectDataPath;
+                            saveFileDialog.Filter = "csv file|*.csv";
+                            saveFileDialog.FileName = "rect_" + strDTNow + ".csv";
+
+                            System.Windows.Forms.DialogResult result = saveFileDialog.ShowDialog();
+                            if (result == System.Windows.Forms.DialogResult.OK)
+                            {
+                                strRectCSVSavePath = saveFileDialog.FileName;
+                                bIsRectSave = true;
+                            }
+                        }
+
+                        if(bIsPolyFound)
+                        {
+                            saveFileDialog.InitialDirectory = strPolyDataPath;
+                            saveFileDialog.Filter = "csv file|*.csv";
+                            saveFileDialog.FileName = "poly_" + strDTNow + ".csv";
+
+                            System.Windows.Forms.DialogResult result = saveFileDialog.ShowDialog();
+                            if (result == System.Windows.Forms.DialogResult.OK)
+                            {
+                                strPolyCSVSavePath = saveFileDialog.FileName;
+                                bIsPolySave = true;
+                            }
+                        }                       
+                    });
+
+                    if (!bIsRectSave && !bIsPolySave){
+                        try{
+                            Directory.Delete(strDatePath, true);
+                        }
+                        catch { }
+                        goto LabelExportSaved;
+                    }
+
+                    if(!(bIsRectSave && strRectCSVSavePath.Contains(strDatePath)) && !(bIsPolySave && strPolyCSVSavePath.Contains(strDatePath)))
+                    {
+                        try{
+                            Directory.Delete(strDatePath, true);
+                        }
+                        catch { }
+                    }                        
+
+                    StringBuilder sbRect = new StringBuilder();
+                    StringBuilder sbPoly = new StringBuilder();
+
+                    Dispatcher.Invoke(() => progressBar.pbStatus.Maximum = ImageMenuList.Count);
+                    for (int nCount = 0; nCount < ImageMenuList.Count; nCount++){
+                        ImageMenu curImage = ImageMenuList[nCount];
+                        ImageListBox curImageBox = curImage.ImageBox;
+                        if (curImageBox.ListImageClass.Count > 0){
+                            for (int nClasscnt = 0; nClasscnt < curImageBox.ListImageClass.Count; nClasscnt++){
+                                ImageClass curImageclass = curImageBox.ListImageClass[nClasscnt];
+                                string strRegionCount = "";
+                                StringBuilder sbTemp = null;
+                                if (curImageclass.Shape == EnumSelectedShape.Rectangle){
+                                    sbTemp = sbRect;
+                                    strRegionCount = curImageBox.ListImageClass.Where(temp => temp.Shape == EnumSelectedShape.Rectangle).Count().ToString();
+                                }
+                                else if (curImageclass.Shape == EnumSelectedShape.Polyline){
+                                    sbTemp = sbPoly;
+                                    strRegionCount = curImageBox.ListImageClass.Where(temp => temp.Shape == EnumSelectedShape.Polyline).Count().ToString();
+                                }
+
+                                if (sbTemp != null){
+                                    var curItem = ListModifiedClass.FirstOrDefault(item => item.ModifiedClassName.ToUpper() == curImageclass.ClassAlias.ToUpper());
+                                    string classID = curItem != null ? curItem.ModifiedID : curImageclass.ClassIndex;
+                                    string strRegion = "{\"class id\":\"" + classID + "\", \"class name\":\"" + curImageclass.ClassAlias + "\"}";
+                                    string strReviewed = curImageclass.Reviewed ? "Yes" : "No";
+                                    string strLineName = curImage.ImagePath.Split('\\').Where(item => settings.LineList.Contains(item.ToUpper()) ||
+                                                            settings.LineList.Select(lines => lines.Replace(" ", "")).Contains(item.ToUpper())).FirstOrDefault();
+                                    if (strLineName != null)
+                                        strLineName = strLineName.Replace(" ", "").ToUpper();
+                                    else
+                                        strLineName = "";
+
+                                    string[] arrAttributes = { curImageBox.ImageBoxName, strRegionCount, "\"" + curImageclass.ShapeCoordinates.Replace("\"", "\"\"") + "\"",
+                                                        "\"" + strRegion.Replace("\"", "\"\"") + "\"",strReviewed,strLineName};
+
+                                    AppendStringBuilder(sbTemp, arrAttributes, seperator);
+                                }
+                            }
+                        }
+                        else{
+                            string[] arrAttributes = { curImage.ImageName, "0", "{}", "{}", "", "" };
+                            AppendStringBuilder(sbRect, arrAttributes, seperator);
+                            AppendStringBuilder(sbPoly, arrAttributes, seperator);
+                        }
+                        Dispatcher.Invoke(() => progressBar.pbStatus.Value = nCount);
+                    }
+
+                    StringBuilder sbHeading = new StringBuilder();
+                    //sbHeading.AppendLine(string.Join(seperator, "Date : " + DateTime.Now.ToString("MM-dd-yyyy HH:mm:ss tt"), " Project : " + strProjectname));
+                    sbHeading.AppendLine(string.Join(",", "Date : " + DateTime.Now.ToString("MM-dd-yyyy HH:mm:ss tt"), " Project : " + strProjectname, "Type : " + settings.ClassType));
+                    sbHeading.AppendLine("filename,region_count,region_shape_attributes,region_attributes,to_be_corrected,line_name");
+                    if (settings.ClassType != EnumClassType.Any && settings.ClassType == EnumClassType.Rectangle && bIsRectSave)
+                    {
+                        sbHeading.Append(sbRect);
+                        File.WriteAllText(strRectCSVSavePath, sbHeading.ToString());
+                    }
+                    else if (settings.ClassType != EnumClassType.Any && settings.ClassType == EnumClassType.Polyline && bIsPolySave)
+                    {
+                        sbHeading.Append(sbPoly);
+                        File.WriteAllText(strPolyCSVSavePath, sbHeading.ToString());
+                    }
+                    else if (settings.ClassType == EnumClassType.Any){
+                        if (sbRect.Length > 0 && bIsRectSave)
+                        {
+                            sbRect.Insert(0, sbHeading);
+                            File.WriteAllText(strRectCSVSavePath, sbRect.ToString());
+                        }
+                        if (sbPoly.Length > 0 && bIsPolySave)
+                        {
+                            sbPoly.Insert(0, sbHeading);
+                            File.WriteAllText(strPolyCSVSavePath, sbPoly.ToString());
+                        }
+                    }
+                }
+
+                LabelExportSaved:
+                string strCSVSavePath = "";
+                string strDataPath = settings.CSVExportPath + @"\Output Data\Formatted Data\Formatted CSV\";
+                if (bIsExportSavedFile)
+                {
+                    if (!Directory.Exists(strDataPath))
+                        Directory.CreateDirectory(strDataPath);
+
+                    if(!bIsMultiExport)
+                    {
+                        this.Dispatcher.Invoke(() =>
+                        {
+                            System.Windows.Forms.SaveFileDialog saveFileDialog = new System.Windows.Forms.SaveFileDialog();
+                            saveFileDialog.InitialDirectory = strDataPath;
+                            saveFileDialog.Filter = "csv file|*.csv";
+                            saveFileDialog.FileName = "data_" + strDTNow + ".csv";
+
+                            System.Windows.Forms.DialogResult result = saveFileDialog.ShowDialog();
+                            if (result == System.Windows.Forms.DialogResult.OK)
+                            {
+                                strCSVSavePath = saveFileDialog.FileName;
+                                bIsFormatSave = true;
+                            }
+                        });
+
+                        if (!bIsFormatSave)
+                        {
+                            goto LabelFinish;
+                        }
+                    }
+                    
+                    StringBuilder sb;
+                    if(!bIsMultiExport){
+                        sb = new StringBuilder();
+                        string[] arrColumnHeader = DictColHeaders.Values.Aggregate((max, cur) => max.Length > cur.Length ? max : cur);
+
+                        //sb.AppendLine(string.Join(seperator, "Date : " + DateTime.Now.ToString("MM-dd-yyyy HH:mm:ss tt"), " Project : " + strProjectname));
+                        sb.AppendLine(string.Join(",", "Date : " + DateTime.Now.ToString("MM-dd-yyyy HH:mm:ss tt"), " Project : " + strProjectname, "Type : " + settings.ClassType));
+                        File.WriteAllText(strCSVSavePath, sb.AppendLine(string.Join(",", arrColumnHeader)).ToString());
+                        for (int count = 0; count < ListDatasheetImportData.Count; count++)
+                            File.AppendAllLines(strCSVSavePath, ListDatasheetImportData[count].ListImportData.Select(temp => string.Join(",", temp)));
+                    }
+                    else{
+                        for (int count = 0; count < ListDatasheetImportData.Count; count++){
+                            sb = new StringBuilder();
+                            strCSVSavePath = System.IO.Path.Combine(strDataPath, "data_" + strDTNow + (count + 1).ToString("(0)") + ".csv");
+                            string[] arrColumnHeader = DictColHeaders[ListDatasheetImportData[count].DatasheetName];
+                            //sb.AppendLine(string.Join(seperator, "Date : " + DateTime.Now.ToString("MM-dd-yyyy HH:mm:ss tt"), " Project : " + strProjectname));
+                            sb.AppendLine(string.Join(",", "Date : " + DateTime.Now.ToString("MM-dd-yyyy HH:mm:ss tt"), " Project : " + strProjectname, "Type : " + settings.ClassType));
+                            File.WriteAllText(strCSVSavePath, sb.AppendLine(string.Join(",", arrColumnHeader)).ToString());
+                            File.AppendAllLines(strCSVSavePath, ListDatasheetImportData[count].ListImportData.Select(temp => string.Join(",", temp)));
+                        }
+                    }                    
+                }
+
+                LabelFinish:
+                OnWorkerMethodComplete("Complete");
+                string strMessage = "";
+                if (bIsExportRawFile && bIsExportSavedFile && (bIsRectSave || bIsPolySave || bIsFormatSave))
+                    strMessage = "Raw CSV File and Saved Format file exported to respective(Raw CSV/Formatted CSV) Output folder Successfully.";
+                else if (!bIsExportRawFile && bIsExportSavedFile && bIsFormatSave)
+                    strMessage = "Saved Format file exported Successfully to below Path\n" + strDataPath;
+                else if (!bIsExportSavedFile && bIsExportRawFile && (bIsRectSave || bIsPolySave))
+                    strMessage = "Raw CSV File exported Successfully to Output folder.";
+
+                if (strMessage != string.Empty)
+                    System.Windows.MessageBox.Show(strMessage, "Success", MessageBoxButton.OK, MessageBoxImage.Information, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+                Utilities.LogMessage("CSV file Exported", 0);
+            }
+
+            catch (Exception ex) when (ex is PathTooLongException || ex is DirectoryNotFoundException)
+            {
+                OnWorkerMethodComplete("Complete");
+                MessageBox.Show("The specified Output Data path, file name, or both are too long.!\nPlease select proper path in settings->Output Data Path.", "Long Path Error", MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+            }
+
+            catch (System.Exception ex)
+            {
+                OnWorkerMethodComplete("Complete");
+                MessageBox.Show("Export Failed..!", "Error", MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+                Utilities.LogMessage("ImageListInterface::SaveCSVFileExportData: " + ex.Message, 9);
+            }
+        }
+
+        /// <summary>
+        /// Function to Append String to string Builder for Rectangle and polyline
+        /// </summary>
+        private void AppendStringBuilder(StringBuilder sb, string[] arrAttributes, string seperator)
+        {
+            for (int i = 0; i < arrAttributes.Length; i++)
+            {
+                if (i == arrAttributes.Length - 1)
+                    sb.AppendLine(arrAttributes[i]);
+                else
+                {
+                    sb.Append(arrAttributes[i]);
+                    sb.Append(seperator);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Function to Export Processed Data which contains image name, class attributes and 
+        /// shape attribute into JSON format and save into OUTPUT folder
+        /// </summary>
+        public void SaveJsonFileExportData(object[] args)
+        {
+            try
+            {
+                bool bIsExportSavedFile = (bool)args[0];
+                bool bIsExportRawFile = (bool)args[1];
+                bool bIsCocoJsonExport = (bool)args[2];
+
+                if (bIsCocoJsonExport)
+                {
+                    ExportCocoModelJsonIntoOutput();
+                    return;
+                }
+
+                bool bIsRectSave = false;
+                bool bIsPolySave = false;
+                bool bIsCircleSave = false;
+                bool bIsFormatSave = false;
+                if (bIsExportRawFile)
+                {
+                    string strDTNow = DateTime.Now.ToString("ddMMyyyy_HHmmss");
+                    string strDatePath = settings.CSVExportPath + @"\Output Data\Raw JSON\" + strDTNow;
+                    string strRectDataPath = strDatePath + "\\Rectangle";
+                    if (!Directory.Exists(strRectDataPath))
+                        Directory.CreateDirectory(strRectDataPath);
+
+                    string strPolyDataPath = strDatePath + "\\Polyline";
+                    if (!Directory.Exists(strPolyDataPath))
+                        Directory.CreateDirectory(strPolyDataPath);
+
+                    string strCircleDataPath = strDatePath + "\\Circle";
+                    if (!Directory.Exists(strCircleDataPath))
+                        Directory.CreateDirectory(strCircleDataPath);
+
+                    string strRectJsonSavePath = System.IO.Path.Combine(strRectDataPath, "rect_" + strDTNow + ".json");
+                    string strPolyJsonSavePath = System.IO.Path.Combine(strPolyDataPath, "poly_" + strDTNow + ".json");
+                    string strCircleJsonSavePath = System.IO.Path.Combine(strCircleDataPath, "circ_" + strDTNow + ".json");
+
+                    List<ImageMenu> listRectImageList = ImageMenuList.Where(item => item.ImageBox.ListImageClass.ToList().Exists(temp => temp.Shape == EnumSelectedShape.Rectangle)
+                                                        || item.ImageBox.ListImageClass.Count == 0).ToList();
+                    List<ImageMenu> listPolyImageList = ImageMenuList.Where(item => item.ImageBox.ListImageClass.ToList().Exists(temp => temp.Shape == EnumSelectedShape.Polyline)
+                                                        || item.ImageBox.ListImageClass.Count == 0).ToList();
+                    List<ImageMenu> listCircleImageList = ImageMenuList.Where(item => item.ImageBox.ListImageClass.ToList().Exists(temp => temp.Shape == EnumSelectedShape.Circle)
+                                                        || item.ImageBox.ListImageClass.Count == 0).ToList();
+
+                    bool bIsRectFound = ImageMenuList.ToList().Exists(item => item.ImageBox.ListImageClass.ToList().Exists(a => a.Shape == EnumSelectedShape.Rectangle));
+                    bool bIsPolyFound = ImageMenuList.ToList().Exists(item => item.ImageBox.ListImageClass.ToList().Exists(a => a.Shape == EnumSelectedShape.Polyline));
+                    bool bIsCircleFound = ImageMenuList.ToList().Exists(item => item.ImageBox.ListImageClass.ToList().Exists(a => a.Shape == EnumSelectedShape.Circle));
+
+                    this.Dispatcher.Invoke(() =>
+                    {
+                        System.Windows.Forms.SaveFileDialog saveFileDialog = new System.Windows.Forms.SaveFileDialog();
+                        if (bIsRectFound)
+                        {
+                            saveFileDialog.InitialDirectory = strRectDataPath;
+                            saveFileDialog.Filter = "json file|*.json";
+                            saveFileDialog.FileName = "rect_" + strDTNow + ".json";
+
+                            System.Windows.Forms.DialogResult result = saveFileDialog.ShowDialog();
+                            if (result == System.Windows.Forms.DialogResult.OK)
+                            {
+                                strRectJsonSavePath = saveFileDialog.FileName;
+                                bIsRectSave = true;
+                            }
+                        }
+
+                        if (bIsPolyFound)
+                        {
+                            saveFileDialog.InitialDirectory = strPolyDataPath;
+                            saveFileDialog.Filter = "json file|*.json";
+                            saveFileDialog.FileName = "poly_" + strDTNow + ".json";
+
+                            System.Windows.Forms.DialogResult result = saveFileDialog.ShowDialog();
+                            if (result == System.Windows.Forms.DialogResult.OK)
+                            {
+                                strPolyJsonSavePath = saveFileDialog.FileName;
+                                bIsPolySave = true;
+                            }
+                        }
+
+                        if (bIsCircleFound)
+                        {
+                            saveFileDialog.InitialDirectory = strCircleDataPath;
+                            saveFileDialog.Filter = "json file|*.json";
+                            saveFileDialog.FileName = "circ_" + strDTNow + ".json";
+
+                            System.Windows.Forms.DialogResult result = saveFileDialog.ShowDialog();
+                            if (result == System.Windows.Forms.DialogResult.OK)
+                            {
+                                strCircleDataPath = saveFileDialog.FileName;
+                                bIsCircleSave = true;
+                            }
+                        }
+                    });
+
+                    if (!bIsRectSave && !bIsPolySave && !bIsCircleSave)
+                    {
+                        try
+                        {
+                            Directory.Delete(strDatePath, true);
+                        }
+                        catch { }
+                        goto LabelExportSaved;
+                    }
+
+                    if (!(bIsRectSave && strRectJsonSavePath.Contains(strDatePath)) && !(bIsPolySave && strPolyJsonSavePath.Contains(strDatePath))
+                        && !(bIsCircleSave && strCircleJsonSavePath.Contains(strDatePath)))
+                    {
+                        try
+                        {
+                            Directory.Delete(strDatePath, true);
+                        }
+                        catch { }
+                    }
+
+                    if (settings.ClassType != EnumClassType.Any && settings.ClassType == EnumClassType.Rectangle && bIsRectSave)
+                        InsertFileStreamForJsonData(listRectImageList, strRectJsonSavePath, 'R');
+
+                    else if (settings.ClassType != EnumClassType.Any && settings.ClassType == EnumClassType.Polyline && bIsPolySave)
+                        InsertFileStreamForJsonData(listPolyImageList, strPolyJsonSavePath, 'P');
+
+                    else if (settings.ClassType != EnumClassType.Any && settings.ClassType == EnumClassType.Circle && bIsCircleSave)
+                        InsertFileStreamForJsonData(listCircleImageList, strCircleJsonSavePath, 'C');
+
+                    else if (settings.ClassType == EnumClassType.Any)
+                    {
+                        if (listRectImageList.Count > 0 && bIsRectSave)
+                            InsertFileStreamForJsonData(listRectImageList, strRectJsonSavePath, 'R');
+
+                        if (listPolyImageList.Count > 0 && bIsPolySave)
+                            InsertFileStreamForJsonData(listPolyImageList, strPolyJsonSavePath, 'P');
+
+                        if (listCircleImageList.Count > 0 && bIsCircleSave)
+                            InsertFileStreamForJsonData(listCircleImageList, strCircleJsonSavePath, 'C');
+                    }
+                }
+
+                LabelExportSaved:
+                string strDataPath = settings.CSVExportPath + @"\Output Data\Formatted Data\Formatted JSON\";
+                if (bIsExportSavedFile)
+                {
+                    if (!Directory.Exists(strDataPath))
+                        Directory.CreateDirectory(strDataPath);
+                    string strCSVSavePath = System.IO.Path.Combine(strDataPath, "json_" + DateTime.Now.ToString("ddMMyyyy_HHmmss") + ".json");
+
+                    this.Dispatcher.Invoke(() =>
+                    {
+                        System.Windows.Forms.SaveFileDialog saveFileDialog = new System.Windows.Forms.SaveFileDialog();
+                        saveFileDialog.InitialDirectory = strDataPath;
+                        saveFileDialog.Filter = "json file|*.json";
+                        saveFileDialog.FileName = "json_" + DateTime.Now.ToString("ddMMyyyy_HHmmss") + ".json";
+
+                        System.Windows.Forms.DialogResult result = saveFileDialog.ShowDialog();
+                        if (result == System.Windows.Forms.DialogResult.OK)
+                        {
+                            strCSVSavePath = saveFileDialog.FileName;
+                            bIsFormatSave = true;
+                        }
+                    });
+
+                    if (!bIsFormatSave)
+                    {
+                        goto LabelFinish;
+                    }
+
+                    string strStatPath = settings.StatsFilePath + @"Temp Files\Format File";
+                    string[] tempFiles = null;
+                    if (System.IO.Directory.Exists(strStatPath))
+                        tempFiles = Directory.GetFiles(strStatPath, "*.json");
+
+                    if (tempFiles != null && tempFiles.Length > 0)
+                    {
+                        string sourcepath = @"" + tempFiles[0];
+                        Delimon.Win32.IO.File.Copy(sourcepath, strCSVSavePath, true);
+                    }
+                }
+
+                LabelFinish:
+                OnWorkerMethodComplete("Complete");
+                string strMessage = "";
+                if (bIsExportRawFile && bIsExportSavedFile && (bIsRectSave || bIsPolySave || bIsCircleSave || bIsFormatSave))
+                    strMessage = "Raw JSON File and Saved Format file exported to respective(Raw JSON/Formatted JSON) Output folder Successfully.";
+                else if (!bIsExportRawFile && bIsExportSavedFile && bIsFormatSave)
+                    strMessage = "Saved Format file exported Successfully to below Path\n" + strDataPath;
+                else if (!bIsExportSavedFile && bIsExportRawFile && (bIsRectSave || bIsPolySave || bIsCircleSave))
+                    strMessage = "Raw JSON File exported Successfully to Output folder.";
+
+                if (strMessage != string.Empty)
+                    System.Windows.MessageBox.Show(strMessage, "Success", MessageBoxButton.OK, MessageBoxImage.Information, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+                Utilities.LogMessage("JSON file Exported", 0);
+            }
+
+            catch (Exception ex) when (ex is PathTooLongException || ex is DirectoryNotFoundException)
+            {
+                OnWorkerMethodComplete("Complete");
+                MessageBox.Show("The specified Output Data path, file name, or both are too long..!\nPlease select proper path in settings->Output Data Path.", "Long Path Error",
+                    MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+            }
+
+            catch (System.Exception ex)
+            {
+                OnWorkerMethodComplete("Complete");
+                MessageBox.Show("Something went wrong. Export Failed.!", "Error", MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+                Utilities.LogMessage("ImageListInterface::SaveJsonFileExportData: " + ex.Message, 9);
+            }
+        }
+
+        /// <summary>
+        /// Function to Export JSON data to different folders respectively Rectangle and Polyline 
+        /// </summary>
+        private void InsertFileStreamForJsonData(List<ImageMenu> ListImageMenu, string strSaveJsonPath, char strClassShape)
+        {
+            string strProjectname = settings.dictProjectList.ContainsKey(settings.CurrentProject) ? settings.dictProjectList[settings.CurrentProject] : "";
+            using (StreamWriter fileWriter = File.CreateText(strSaveJsonPath))
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    progressBar.pbStatus.Maximum = ListImageMenu.Count;
+                });
+
+                fileWriter.WriteLine("{");
+                fileWriter.WriteLine("\"project\" : \"" + strProjectname + "\",");
+                for (int nCount = 0; nCount < ListImageMenu.Count; nCount++)
+                {
+                    ImageMenu curImage = ListImageMenu[nCount];
+                    ImageListBox curImageBox = curImage.ImageBox;
+
+                    string output = JsonConvert.SerializeObject(curImage.ImageName, Newtonsoft.Json.Formatting.Indented);
+                    fileWriter.Write(output);
+                    fileWriter.WriteLine(": {");
+                    if (curImageBox.ListImageClass.Count > 0)
+                    {
+                        List<ImageClass> listImageClass = new List<ImageClass>();
+                        if (strClassShape == 'R')
+                            listImageClass = curImageBox.ListImageClass.Where(temp => temp.Shape == EnumSelectedShape.Rectangle).ToList();
+                        else if (strClassShape == 'P')
+                            listImageClass = curImageBox.ListImageClass.Where(temp => temp.Shape == EnumSelectedShape.Polyline).ToList();
+                        else if (strClassShape == 'C')
+                            listImageClass = curImageBox.ListImageClass.Where(temp => temp.Shape == EnumSelectedShape.Circle).ToList();
+
+                        output = JsonConvert.SerializeObject(curImage.ImageName, Newtonsoft.Json.Formatting.Indented);
+                        fileWriter.WriteLine("\"filename\" :" + output + ",");
+                        fileWriter.WriteLine("\"regions\": [");
+
+                        JsonClassAttributes curClassAttributes = new JsonClassAttributes();
+                        JsonShapeAttributes curShapeAttributes = new JsonShapeAttributes();
+                        for (int i = 0; i < listImageClass.Count; i++)
+                        {
+                            ImageClass curImageclass = listImageClass[i] as ImageClass;
+                            curShapeAttributes.Shape = curImageclass.Shape;
+                            curShapeAttributes.All_Points_X = curImageclass.All_Points_X;
+                            curShapeAttributes.All_Points_Y = curImageclass.All_Points_Y;
+                            curShapeAttributes.XCoordinate = curImageclass.XCoordinate;
+                            curShapeAttributes.YCoordinate = curImageclass.YCoordinate;
+                            curShapeAttributes.Width = curImageclass.Width;
+                            curShapeAttributes.Height = curImageclass.Height;
+
+                            curClassAttributes.ClassIndex = curImageclass.ClassIndex;
+                            curClassAttributes.ClassName = curImageclass.ClassName;
+                            curClassAttributes.Review = curImageclass.Reviewed ? "Yes" : "No";
+
+                            fileWriter.WriteLine("{");
+                            fileWriter.Write("\"shape_attributes\":");
+                            output = JsonConvert.SerializeObject(curShapeAttributes, Newtonsoft.Json.Formatting.None, new JsonSerializerSettings()
+                            {
+                                ContractResolver = new IgnoreEmptyEnumerableResolver(),
+                                NullValueHandling = NullValueHandling.Ignore,
+                                DefaultValueHandling = DefaultValueHandling.Ignore
+                            });
+                            fileWriter.Write(output);
+                            fileWriter.WriteLine(",");
+                            fileWriter.Write("\"region_attributes\":");
+                            output = JsonConvert.SerializeObject(curClassAttributes, Newtonsoft.Json.Formatting.Indented, new JsonSerializerSettings()
+                            {
+                                NullValueHandling = NullValueHandling.Ignore
+                            });
+                            fileWriter.Write(output);
+                            fileWriter.Write("}");
+                            if (i < listImageClass.Count - 1)
+                                fileWriter.WriteLine(",");
+                        }
+
+                        fileWriter.WriteLine("]");
+                        fileWriter.Write("}");
+                        if (nCount < ListImageMenu.Count - 1)
+                            fileWriter.WriteLine(",");
+                    }
+                    else
+                    {
+                        output = JsonConvert.SerializeObject(curImage.ImageName, Newtonsoft.Json.Formatting.Indented);
+                        fileWriter.WriteLine("\"filename\" :" + output + ",");
+                        fileWriter.WriteLine("\"regions\" :[]");
+                        fileWriter.Write("}");
+                        if (nCount < ListImageMenu.Count - 1)
+                            fileWriter.WriteLine(",");
+                    }
+                    Dispatcher.Invoke(() =>
+                    {
+                        progressBar.pbStatus.Value = nCount;
+                    });
+                }
+                fileWriter.WriteLine("} ");
+            }
+        }
+
+        /// <summary>
+        /// Function to Export Processed Data which contains image name, class attributes and 
+        /// shape attribute into XML format and save into OUTPUT folder
+        /// </summary>
+        private void ExportXMLDataintoOutput()
+        {
+            try
+            {
+                //string strDefSize = "0";
+                string strDefPath = DefaultPath == "" ? "" : DefaultPath + "\\";
+                //if (ProcessedImageBox.Exists(item => item.ImageHeight == 0 && item.Imagewidth == 0))
+                //{
+                //    Dispatcher.Invoke(() =>
+                //    {
+                //        MessageBoxResult result = MessageBox.Show("Some of images could not fetch the Image size..! \nSelect Yes if you want to export default size(1700x1700), Otherwise No to 0?",
+                //                "Format XML", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                //        if (result == MessageBoxResult.Yes)
+                //            strDefSize = "1700";
+                //        else
+                //            strDefSize = "0";
+                //    });
+                //}
+
+                string strDTNow = DateTime.Now.ToString("ddMMyyyy_HHmmss");
+                string strRectDataPath = settings.CSVExportPath + @"\Output Data\Raw XML\" + strDTNow + "\\Rectangle";
+                if (!Directory.Exists(strRectDataPath))
+                    Directory.CreateDirectory(strRectDataPath);
+
+                string strPolyDataPath = settings.CSVExportPath + @"\Output Data\Raw XML\" + strDTNow + "\\Polyline";
+                if (!Directory.Exists(strPolyDataPath))
+                    Directory.CreateDirectory(strPolyDataPath);
+
+                labelEvent.Reset();
+
+                if (!bIsOverrideValid)
+                    ExportXMLFromProcessedImageList(strRectDataPath, strPolyDataPath, strDefPath);
+                else
+                    ExportXMLFromImportedCSVDatasheet(strRectDataPath, strPolyDataPath, strDefPath);
+
+                labelEvent.Set();
+                OnWorkerMethodComplete("Complete");
+                if (Directory.GetFiles(strRectDataPath).Count() == 0)
+                    Directory.Delete(strRectDataPath);
+
+                if (Directory.GetFiles(strPolyDataPath).Count() == 0)
+                    Directory.Delete(strPolyDataPath);
+
+                MessageBox.Show("XML File Exported Successfully..", "Success", MessageBoxButton.OK, MessageBoxImage.Information, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+                Utilities.LogMessage("XML file Exported", 0);
+            }
+
+            catch (Exception ex) when (ex is PathTooLongException || ex is DirectoryNotFoundException)
+            {
+                labelEvent.Set();
+                OnWorkerMethodComplete("Complete");
+                MessageBox.Show("The specified Output Data path, file name, or both are too long..!\nPlease select proper path in settings->Output Data Path..", "Long Path Error", MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+            }
+
+            catch (System.Exception ex)
+            {
+                labelEvent.Set();
+                OnWorkerMethodComplete("Complete");
+                MessageBox.Show("Something went wrong..! Could not export..", "Export Failed", MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+                Utilities.LogMessage("MainWindow::ExportXML_Click: " + ex.Message, 9);
+            }
+        }
+
+        /// <summary>
+        /// Function to Export imported CSV files which contains image name, class attributes and 
+        /// shape attribute into XML format from  and save into OUTPUT folder
+        /// </summary>
+        private void ExportXMLFromImportedCSVDatasheet(string strExporRectDataPath, string strExporPolyDataPath, string strDefPath)
+        {
+            List<string[]> listCSVDataLines = new List<string[]>();
+            for (int count = 0; count < ListDatasheetImportData.Count; count++)
+                listCSVDataLines.AddRange(ListDatasheetImportData[count].ListImportData);
+
+            for (int i = 0; i < listCSVDataLines.Count; i++)
+            {
+                string[] lineSplit = listCSVDataLines[i].Select(item => Regex.Replace(item, @"[""{}]", "")).ToArray();
+                if (!IsValidCSVLine(lineSplit) || IsColHeaderLine(lineSplit))
+                {
+                    listCSVDataLines.RemoveAt(i);
+                    i--;
+                    continue;
+                }
+            }
+
+            Dispatcher.Invoke(() => progressBar.pbStatus.Maximum = listCSVDataLines.Count);
+
+            for (int lineCount = 0; lineCount < listCSVDataLines.Count; lineCount++)
+            {
+                Dispatcher.Invoke(() => progressBar.pbStatus.Value = lineCount);
+
+                string[] lineSplit = listCSVDataLines[lineCount].Select(item => Regex.Replace(item, @"[""{}]", "")).ToArray();
+
+                string[] arrShapeAttribute = Regex.Split(lineSplit[2], @",(?=[^\]]*(?:\[|$))");
+                if (arrShapeAttribute.Length < 3)
+                    continue;
+
+                string strTempShape = arrShapeAttribute[0].Substring(arrShapeAttribute[0].LastIndexOf(':') + 1).ToLower();
+                if (strTempShape.Contains("rect"))
+                    InsertXMLElementFromCSVDatasheet(lineSplit, strExporRectDataPath, strDefPath, 'R');
+                else if (strTempShape.Contains("poly"))
+                    InsertXMLElementFromCSVDatasheet(lineSplit, strExporPolyDataPath, strDefPath, 'P');
+            }
+        }
+
+        private void InsertXMLElementFromCSVDatasheet(string[] lineSplit, string strExportDataPath, string strDefPath, char ShapeType)
+        {
+            string strProjectname = settings.dictProjectList.ContainsKey(settings.CurrentProject) ? settings.dictProjectList[settings.CurrentProject] : "";
+            string strImageName = System.IO.Path.GetFileNameWithoutExtension(lineSplit[0]);
+            string[] arrShapeAttribute = Regex.Split(lineSplit[2], @",(?=[^\]]*(?:\[|$))");
+
+            double X = 0, Y = 0, Width = 0, Height = 0;
+            List<double> all_point_x = new List<double>();
+            List<double> all_point_y = new List<double>();
+
+            if (ShapeType == 'R')
+            {
+                X = Convert.ToDouble(arrShapeAttribute[1].Substring(arrShapeAttribute[1].LastIndexOf(':') + 1));
+                Y = Convert.ToDouble(arrShapeAttribute[2].Substring(arrShapeAttribute[2].LastIndexOf(':') + 1));
+                Width = Convert.ToDouble(arrShapeAttribute[3].Substring(arrShapeAttribute[3].LastIndexOf(':') + 1));
+                Height = Convert.ToDouble(arrShapeAttribute[4].Substring(arrShapeAttribute[4].LastIndexOf(':') + 1));
+            }
+
+            else if (ShapeType == 'P')
+            {
+                string subString_x = arrShapeAttribute[1].Substring(arrShapeAttribute[1].LastIndexOf(':') + 1).Replace("[", "").Replace("]", "");
+                all_point_x = subString_x.Split(',').Select(double.Parse).ToList();
+
+                string subString_y = arrShapeAttribute[2].Substring(arrShapeAttribute[2].LastIndexOf(':') + 1).Replace("[", "").Replace("]", "");
+                all_point_y = subString_y.Split(',').Select(double.Parse).ToList();
+            }
+
+            string strClassName = Regex.Match(lineSplit[3], @"\b[:]\s*[A-Za-z]+").ToString().Replace(":", "").Trim();
+            string strReviewed = (lineSplit.Length > 4 && lineSplit[4] != "") ? lineSplit[4] : "";
+
+            string strXMLFilepath = System.IO.Path.Combine(strExportDataPath + @"\" + strImageName + ".xml");
+            if (!File.Exists(strXMLFilepath))
+            {
+                XDocument xDocument = new XDocument();
+                var rootElement = new XElement("annotation");
+                var folderElement = new XElement("folder", ShapeType == 'R' ? "Rectangle" : "Polyline");
+                var fileNmElement = new XElement("filename", lineSplit[0]);
+
+                ImageMenu curImageMenu = ImageMenuList.FirstOrDefault(item => item.ImageName == lineSplit[0].Trim());
+                var pathElement = new XElement("path", curImageMenu != null ? curImageMenu.ImagePath : strDefPath + lineSplit[0]);
+
+                var sourceElement = new XElement("source");
+                sourceElement.Add(new XElement("database", strProjectname));
+
+                if (curImageMenu != null && curImageMenu.ImageBox.ImageHeight == 0)
+                {
+                    try
+                    {
+                        using (FileStream stream = Delimon.Win32.IO.File.OpenRead(curImageMenu.ImagePath))
+                        {
+                            System.Drawing.Bitmap bmpImage = new System.Drawing.Bitmap(stream);
+                            //System.Drawing.Image bmpImage = System.Drawing.Image.FromStream(stream);
+                            curImageMenu.ImageBox.ImageHeight = bmpImage.Height;
+                            curImageMenu.ImageBox.Imagewidth = bmpImage.Width;
+                        }
+                    }
+
+                    catch
+                    {
+                        curImageMenu.ImageBox.ImageHeight = 0;
+                        curImageMenu.ImageBox.Imagewidth = 0;
+                    }
+                }
+
+                var sizeElement = new XElement("size");
+                if (curImageMenu != null && curImageMenu.ImageBox.ImageHeight > 0)
+                {
+                    sizeElement.Add(
+                        new XElement("width", curImageMenu.ImageBox.Imagewidth),
+                        new XElement("height", curImageMenu.ImageBox.ImageHeight),
+                        new XElement("depth", "1"));
+                }
+                else
+                {
+                    sizeElement.Add(
+                        new XElement("width", DefaultSize),
+                        new XElement("height", DefaultSize),
+                        new XElement("depth", "1"));
+                }
+
+                var segmentElement = new XElement("segmented", "0");
+
+                var bndboxElement = new XElement("bndbox");
+                if (ShapeType == 'R')
+                {
+                    var xminElement = new XElement("xmin", Math.Round(X, 0).ToString());
+                    var yminElement = new XElement("ymin", Math.Round(Y, 0).ToString());
+                    var xmaxElement = new XElement("xmax", Math.Round(X + Width, 0).ToString());
+                    var ymaxElement = new XElement("ymax", Math.Round(Y + Height, 0).ToString());
+                    bndboxElement.Add(xminElement, yminElement, xmaxElement, ymaxElement);
+                }
+
+                else if (ShapeType == 'P')
+                {
+                    var xpointsElement = new XElement("xpoints", String.Join(",", all_point_x.Select(item => Math.Round(item, 0))));
+                    var ypointsElement = new XElement("ypoints", String.Join(",", all_point_y.Select(item => Math.Round(item, 0))));
+                    bndboxElement.Add(xpointsElement, ypointsElement);
+                }
+                var objElement = new XElement("object");
+                var reviewElement = new XElement("correction", strReviewed);
+                objElement.Add(
+                    new XElement("name", strClassName),
+                    new XElement("pose", "Unspecified"),
+                    new XElement("truncated", "0"),
+                    new XElement("difficult", "0"),
+                    reviewElement,
+                    bndboxElement
+                );
+                if (!bIsAppendReview)
+                    reviewElement.Remove();
+
+                rootElement.Add(folderElement, fileNmElement, pathElement, sourceElement, sizeElement, segmentElement, objElement);
+                xDocument.Add(rootElement);
+                XmlWriterSettings xws = new XmlWriterSettings { OmitXmlDeclaration = true, Indent = true };
+                //string longpath = @"\\?\" + strXMLFilepath;
+                string longpath = strXMLFilepath;
+                using (XmlWriter xmlWriter = XmlWriter.Create(longpath, xws))
+                    xDocument.Save(xmlWriter);
+            }
+
+            else
+            {
+                XDocument xDocument = XDocument.Load(strXMLFilepath, LoadOptions.None);
+                XElement root = xDocument.Element("annotation");
+                IEnumerable<XElement> objects = root.Descendants("object");
+                XElement firstRow = objects.First();
+
+                var objElement = new XElement("object");
+                var nameElement = new XElement("name", strClassName);
+                var poseElement = new XElement("pose", "Unspecified");
+                var truncElement = new XElement("truncated", "0");
+                var diffElement = new XElement("difficult", "0");
+                var reviewElement = new XElement("correction", strReviewed);
+
+                var bndboxElement = new XElement("bndbox");
+                if (ShapeType == 'R')
+                {
+                    var xminElement = new XElement("xmin", Math.Round(X, 0).ToString());
+                    var yminElement = new XElement("ymin", Math.Round(Y, 0).ToString());
+                    var xmaxElement = new XElement("xmax", Math.Round(X + Width, 0).ToString());
+                    var ymaxElement = new XElement("ymax", Math.Round(Y + Height, 0).ToString());
+
+                    bndboxElement.Add(xminElement, yminElement, xmaxElement, ymaxElement);
+                }
+                else if (ShapeType == 'P')
+                {
+                    var xpointsElement = new XElement("xpoints", String.Join(",", all_point_x.Select(item => Math.Round(item, 0))));
+                    var ypointsElement = new XElement("ypoints", String.Join(",", all_point_y.Select(item => Math.Round(item, 0))));
+
+                    bndboxElement.Add(xpointsElement, ypointsElement);
+                }
+
+                objElement.Add(nameElement, poseElement, truncElement, diffElement, reviewElement, bndboxElement);
+                if (!bIsAppendReview)
+                    reviewElement.Remove();
+
+                firstRow.AddAfterSelf(objElement);
+                XmlWriterSettings xws = new XmlWriterSettings { OmitXmlDeclaration = true, Indent = true };
+                //string longpath = @"\\?\" + strXMLFilepath;
+                string longpath = strXMLFilepath;
+                using (XmlWriter xmlWriter = XmlWriter.Create(longpath, xws))
+                    xDocument.Save(xmlWriter);
+            }
+        }
+
+        /// <summary>
+        /// Function to Export Processed Data which contains image name, class attributes and 
+        /// shape attribute into XML format and save into OUTPUT folder
+        /// </summary>
+        private void ExportXMLFromProcessedImageList(string strExporRectDataPath, string strExporPolytDataPath, string strDefPath)
+        {
+            string strProjectname = settings.dictProjectList.ContainsKey(settings.CurrentProject) ? settings.dictProjectList[settings.CurrentProject] : "";
+            Dispatcher.Invoke(() =>
+            {
+                progressBar.pbStatus.Maximum = ProcessedImageBox.Count;
+            });
+            for (int index = 0; index < ProcessedImageBox.Count; index++)
+            {
+                Dispatcher.Invoke(() => { progressBar.pbStatus.Value = index; });
+                ImageListBox curImageBox = ProcessedImageBox[index] as ImageListBox;
+                List<ImageClass> listRectImageList = curImageBox.ListImageClass.Where(temp => temp.Shape == EnumSelectedShape.Rectangle).ToList();
+                List<ImageClass> listPolyImageList = curImageBox.ListImageClass.Where(temp => temp.Shape == EnumSelectedShape.Polyline).ToList();
+
+                string strImageName = System.IO.Path.GetFileNameWithoutExtension(curImageBox.ImageBoxName);
+                string strRectXMLFilepath = System.IO.Path.Combine(strExporRectDataPath + @"\" + strImageName + ".xml");
+                string strPolyXMLFilepath = System.IO.Path.Combine(strExporPolytDataPath + @"\" + strImageName + ".xml");
+
+                var rootRectElement = new XElement("annotation");
+                var rootPolyElement = new XElement("annotation");
+                var fileNmElement = new XElement("filename", curImageBox.ImageBoxName);
+
+                string strPathName = ImageMenuList.Where(item => item.ImageBox == curImageBox).Select(temp => temp.ImagePath).FirstOrDefault();
+                var pathElement = new XElement("path", strPathName != null ? strPathName : strDefPath + curImageBox.ImageBoxName);
+
+                var sourceElement = new XElement("source");
+                sourceElement.Add(new XElement("database", strProjectname));
+
+                if (strPathName != null && curImageBox.ImageHeight == 0)
+                {
+                    try
+                    {
+                        using (FileStream stream = Delimon.Win32.IO.File.OpenRead(strPathName))
+                        {
+                            System.Drawing.Bitmap bmpImage = new System.Drawing.Bitmap(stream);
+                            //System.Drawing.Image bmpImage = System.Drawing.Image.FromStream(stream);
+                            curImageBox.ImageHeight = bmpImage.Height;
+                            curImageBox.Imagewidth = bmpImage.Width;
+                        }
+                    }
+
+                    catch
+                    {
+                        curImageBox.ImageHeight = 0;
+                        curImageBox.Imagewidth = 0;
+                    }
+                }
+                var sizeElement = new XElement("size");
+                if (curImageBox.ImageHeight > 0)
+                {
+                    sizeElement.Add(
+                        new XElement("width", curImageBox.Imagewidth),
+                        new XElement("height", curImageBox.ImageHeight),
+                        new XElement("depth", "1"));
+                }
+                else
+                {
+                    sizeElement.Add(
+                        new XElement("width", DefaultSize),
+                        new XElement("height", DefaultSize),
+                        new XElement("depth", "1"));
+                }
+
+                var segmentElement = new XElement("segmented", "0");
+
+                if (settings.ClassType != EnumClassType.Any && settings.ClassType == EnumClassType.Rectangle && listRectImageList.Count > 0)
+                {
+                    var folderElement = new XElement("folder", "Rectangle");
+                    rootRectElement.Add(folderElement, fileNmElement, pathElement, sourceElement, sizeElement, segmentElement);
+                    InsertXMLElementintoXMLData(listRectImageList, strRectXMLFilepath, rootRectElement, 'R');
+                }
+
+                else if (settings.ClassType != EnumClassType.Any && settings.ClassType == EnumClassType.Polyline && listPolyImageList.Count > 0)
+                {
+                    var folderElement = new XElement("folder", "Polyline");
+                    rootPolyElement.Add(folderElement, fileNmElement, pathElement, sourceElement, sizeElement, segmentElement);
+                    InsertXMLElementintoXMLData(listPolyImageList, strPolyXMLFilepath, rootPolyElement, 'P');
+                }
+
+                else if (settings.ClassType == EnumClassType.Any)
+                {
+                    if (listRectImageList.Count > 0)
+                    {
+                        var folderElement = new XElement("folder", "Rectangle");
+                        rootRectElement.Add(folderElement, fileNmElement, pathElement, sourceElement, sizeElement, segmentElement);
+                        InsertXMLElementintoXMLData(listRectImageList, strRectXMLFilepath, rootRectElement, 'R');
+                    }
+                    if (listPolyImageList.Count > 0)
+                    {
+                        var folderElement = new XElement("folder", "Polyline");
+                        rootPolyElement.Add(folderElement, fileNmElement, pathElement, sourceElement, sizeElement, segmentElement);
+                        InsertXMLElementintoXMLData(listPolyImageList, strPolyXMLFilepath, rootPolyElement, 'P');
+                    }
+                }
+            }
+        }
+
+        private void InsertXMLElementintoXMLData(List<ImageClass> lisImageClassList, string strXMLFilepath, XElement rootElement, char ShapeType)
+        {
+            XDocument xDocument = new XDocument();
+            foreach (ImageClass curImageclass in lisImageClassList)
+            {
+                //string strAlias = curImageclass.ClassName.Split('(', ')').Length > 1 ? curImageclass.ClassName.Split('(', ')')[1] : curImageclass.ClassName.Split('(', ')')[0];
+                string strAlias = curImageclass.ClassAlias;
+                var bndboxElement = new XElement("bndbox");
+                if (ShapeType == 'R')
+                {
+                    var xminElement = new XElement("xmin", Math.Round(curImageclass.XCoordinate, 0).ToString());
+                    var yminElement = new XElement("ymin", Math.Round(curImageclass.YCoordinate, 0).ToString());
+                    var xmaxElement = new XElement("xmax", Math.Round(curImageclass.XCoordinate + curImageclass.Width, 0).ToString());
+                    var ymaxElement = new XElement("ymax", Math.Round(curImageclass.YCoordinate + curImageclass.Height, 0).ToString());
+                    bndboxElement.Add(xminElement, yminElement, xmaxElement, ymaxElement);
+                }
+
+                else if (ShapeType == 'P')
+                {
+                    var xpointsElement = new XElement("xpoints", String.Join(",", curImageclass.All_Points_X.Select(item => Math.Round(item, 0))));
+                    var ypointsElement = new XElement("ypoints", String.Join(",", curImageclass.All_Points_Y.Select(item => Math.Round(item, 0))));
+                    bndboxElement.Add(xpointsElement, ypointsElement);
+                }
+
+                var objElement = new XElement("object");
+                string strReviewed = curImageclass.Reviewed ? "Yes" : "No";
+                var reviewElement = new XElement("correction", strReviewed);
+                objElement.Add(
+                    new XElement("name", strAlias),
+                    new XElement("pose", "Unspecified"),
+                    new XElement("truncated", "0"),
+                    new XElement("difficult", "0"),
+                    reviewElement,
+                    bndboxElement
+                );
+
+                if (!bIsAppendReview)
+                    reviewElement.Remove();
+                rootElement.Add(objElement);
+            }
+
+            xDocument.Add(rootElement);
+            XmlWriterSettings xws = new XmlWriterSettings { OmitXmlDeclaration = true, Indent = true };
+            //string longpath = @"\\?\" + strXMLFilepath;
+            string longpath = strXMLFilepath;
+            using (XmlWriter xmlWriter = XmlWriter.Create(longpath, xws))
+                xDocument.Save(xmlWriter);
+        }
+
+        /// <summary>
+        /// Function to Save all labelled ROI's with cropped size into OUTPUT folder         
+        /// </summary>
+        public void SaveAllROItoDisk(object[] arrArgs)
+        {
+            string image = "";
+            try
+            {
+                int nImageCount = 0;
+                List<string> listFilteredClass = arrArgs[0] as List<string>;
+                Dispatcher.Invoke(() => nImageCount = listBoxImages.Items.Count);
+
+                labelEvent.Reset();
+
+                ImageMenu[] arrImageMenuList = ImageMenuList.Where(item => item.MenuItemBrush != ImageMenuBrushes[0]).ToArray();
+
+                if (nImageCount == 0){
+                    OnWorkerMethodComplete("Complete");
+                    MessageBox.Show("No Labelled Images found in selected class to export..!", "Export Failed", MessageBoxButton.OK, MessageBoxImage.Warning, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+                    return;
+                }
+
+                string strDataPath = settings.CSVExportPath + @"\Output Data\Cropped Images\ROI_" + DateTime.Now.ToString("ddMMyyyy_HHmmss");
+                if (!Directory.Exists(strDataPath))
+                    Directory.CreateDirectory(strDataPath);
+
+                Dispatcher.Invoke(() => progressBar.pbStatus.Maximum = arrImageMenuList.Length);
+
+                for (int nCount = 0; nCount < arrImageMenuList.Length; nCount++)
+                {
+                    Dispatcher.Invoke(() => progressBar.pbStatus.Value = nCount);
+                    ImageMenu currentImage = arrImageMenuList[nCount];
+                    ImageListBox curImageBox = currentImage.ImageBox;
+
+                    image = currentImage.ImagePath;
+                    BitmapImage croppedImage;
+                    if (currentImage.ImagePath.Length >= settings.FILE_MAX_LENGTH)
+                    {
+                        croppedImage = new BitmapImage();
+                        using (FileStream stream = Delimon.Win32.IO.File.OpenRead(currentImage.ImagePath))
+                        {
+                            croppedImage.BeginInit();
+                            croppedImage.CacheOption = BitmapCacheOption.OnLoad;
+                            croppedImage.StreamSource = stream;
+                            croppedImage.EndInit();
+                        }
+                    }
+                    else
+                        croppedImage = new BitmapImage(new Uri(currentImage.ImagePath));
+
+                    for (int nListcnt = 0; nListcnt < curImageBox.ListImageClass.Count; nListcnt++)
+                    {
+                        ImageClass curImageclass = curImageBox.ListImageClass[nListcnt] as ImageClass;
+                        if (!listFilteredClass.Contains(curImageclass.ClassAlias.ToUpper()))
+                            continue;
+
+                        int x = 0, y = 0, width = 0, height = 0;
+                        if (curImageclass.Shape == EnumSelectedShape.Rectangle || curImageclass.Shape == EnumSelectedShape.Circle)
+                        {
+                            x = Convert.ToInt32(curImageclass.XCoordinate);
+                            y = Convert.ToInt32(curImageclass.YCoordinate);
+                            width = Convert.ToInt32(curImageclass.Width);
+                            height = Convert.ToInt32(curImageclass.Height);
+                        }
+
+                        else if (curImageclass.Shape == EnumSelectedShape.Polyline)
+                        {
+                            x = Convert.ToInt32(curImageclass.All_Points_X.Min());
+                            y = Convert.ToInt32(curImageclass.All_Points_Y.Min());
+                            int x1 = Convert.ToInt32(curImageclass.All_Points_X.Max());
+                            int y1 = Convert.ToInt32(curImageclass.All_Points_Y.Max());
+                            width = x1 - x;
+                            height = y1 - y;
+                        }
+
+                        x = (x < 0) ? 0 : (x >= croppedImage.PixelWidth) ? croppedImage.PixelWidth - 1 : x;
+                        y = (y < 0) ? 0 : (y >= croppedImage.PixelHeight) ? croppedImage.PixelHeight - 1 : y;
+                        width = (width <= 0) ? 1 : ((x + width) > croppedImage.PixelWidth) ? croppedImage.PixelWidth - x : width;
+                        height = (height <= 0) ? 1 : ((y + height) > croppedImage.PixelHeight) ? croppedImage.PixelHeight - y : height;
+
+                        CroppedBitmap CroppedBitmap = new CroppedBitmap(croppedImage, new Int32Rect(x, y, width, height));
+              
+                        string strClassName = string.IsNullOrEmpty(curImageclass.ClassAlias) ? "Unknown Class" : curImageclass.ClassAlias;
+                        if (!Directory.Exists(System.IO.Path.Combine(strDataPath, strClassName)))
+                            Directory.CreateDirectory(System.IO.Path.Combine(strDataPath, strClassName));
+
+                        string strROISavePath = System.IO.Path.Combine(strDataPath, strClassName + "\\" + curImageBox.ImageBoxName);
+                        PngBitmapEncoder pngImage = new PngBitmapEncoder();
+                        pngImage.Frames.Add(BitmapFrame.Create(CroppedBitmap));
+                        while (File.Exists(strROISavePath))
+                        {
+                            string strReplace = strROISavePath.Replace(".bmp", string.Empty);
+                            string temp = strReplace.Substring(strReplace.Length - 2, 2);
+                            int n;
+                            bool bIsIntCheck = Int32.TryParse(temp.Substring(1, 1), out n);
+                            strROISavePath = System.IO.Path.Combine(strDataPath, strClassName + "\\" + curImageBox.ImageBoxName.Replace(System.IO.Path.GetExtension(curImageBox.ImageBoxName), string.Empty)
+                                                + "_" + (n + 1).ToString() + ".bmp");
+                        }
+                        using (Stream fileStream = File.Create(strROISavePath))
+                        {
+                            pngImage.Save(fileStream);
+                        }
+                    }
+                }
+
+                labelEvent.Set();
+                OnWorkerMethodComplete("Complete");
+                System.Windows.MessageBox.Show("All Labelled ROI's saved successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+                Utilities.LogMessage("All Labelled ROI Exported", 0);
+            }
+
+            catch (Exception ex) when (ex is PathTooLongException || ex is DirectoryNotFoundException)
+            {
+                labelEvent.Set();
+                OnWorkerMethodComplete("Complete");
+                System.Windows.MessageBox.Show("The specified Output Data path, file name, or both are too long..!\nPlease select proper path in settings->Output Data Path..", "Long Path Error", MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+            }
+
+            catch (System.Exception ex) 
+            {
+                labelEvent.Set();
+                OnWorkerMethodComplete("Complete");
+                //to find the exception line number
+                var lineNumber = 0;
+                const string lineSearch = ":line ";
+                var index = ex.StackTrace.LastIndexOf(lineSearch);
+                if (index != -1)
+                {
+                    var lineNumberText = ex.StackTrace.Substring(index + lineSearch.Length);
+                    if (int.TryParse(lineNumberText, out lineNumber))
+                    {
+                    }
+                }
+                
+                var r = lineNumber;
+                Utilities.LogMessage("MainWindow::AllROIExport_Click: Exception Trace" + ex.StackTrace, 9);
+                Utilities.LogMessage("MainWindow::AllROIExport_Click:@ line number: " + lineNumber + " " + ex.Message + " type: " + ex.GetType().Name, 9);
+                Utilities.LogMessage("MainWindow::AllROIExport_Click: Image: " + image, 9);
+            }
+        }
+
+        private void RetrieveValidatedImages(object[] arrArgs)
+        {
+            try
+            {
+                List<string> listFilteredClass = arrArgs[0] as List<string>;
+                bool bIsInclude = (bool)arrArgs[1];
+                bool bIsMoveImagesToRetrieve = (bool)arrArgs[2];
+
+                var tempImageList = ImageMenuList.Select(a => new { a.ImageName, a.ImagePath }).ToList();
+                string strDataPath = settings.CSVExportPath + @"\Output Data\Image validated\Image_" + DateTime.Now.ToString("ddMMyyyy_HHmmss");
+                if (!Directory.Exists(strDataPath))
+                    Directory.CreateDirectory(strDataPath);
+
+                if (!IsDiskSpaceOK(strDataPath))
+                {
+                    OnWorkerMethodComplete("Complete");
+                    System.Windows.MessageBox.Show("Output disk was full, Cannot Copy/Move images.!. Free Some space and try again..", "No Storage Space", MessageBoxButton.OK,
+                            MessageBoxImage.Error, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+                    Utilities.LogMessage("Output disk was full, Cannot Copy/Move images.", 0);
+                    if (Directory.Exists(strDataPath))
+                        Directory.Delete(strDataPath);
+                    return;
+                }
+
+                long nImageCount = 0;
+                StringBuilder sb = new StringBuilder();
+                sb.AppendLine("Date : " + DateTime.Now.ToString("MM-dd-yyyy HH:mm:ss tt"));
+
+                string strOperation = "";
+                if (bIsMoveImagesToRetrieve)
+                    strOperation = "Move";
+                else
+                    strOperation = "Copy";
+                sb.AppendLine("List of Images not found while " + strOperation + " Operation :");
+                sb.AppendLine("");
+
+                List<string> listNotFoundImages = new List<string>();
+                for (int count = 0; count < ListDatasheetImportData.Count; count++)
+                {
+                    Dispatcher.Invoke(() => { progressBar.pbStatus.Maximum = ListDatasheetImportData[count].ListImportData.Count; });
+                    for (int lines = 0; lines < ListDatasheetImportData[count].ListImportData.Count; lines++)
+                    {
+                        Dispatcher.Invoke(() => progressBar.pbStatus.Value = lines);
+                        string[] lineSplit = ListDatasheetImportData[count].ListImportData[lines].Select(item => Regex.Replace(item, @"[""{}]", "")).ToArray(); 
+
+                        if (!bIsInclude && !IsValidCSVLine(lineSplit))
+                            continue;
+
+                        if (IsColHeaderLine(lineSplit))
+                            continue;
+
+                        string fileName = lineSplit[0].Trim().ToString();
+                        string ClassName = settings.ClassType != EnumClassType.Segregation ? lineSplit.Length > 3 ? Regex.Match(lineSplit[3], @"\b[:]\s*[A-Za-z]+").ToString().Replace(":", "").Trim().ToUpper() : "" :
+                                                                        lineSplit.Length > 2 ? Regex.Match(lineSplit[2], @"\b[:]\s*[A-Za-z]+").ToString().Replace(":", "").Trim().ToUpper() : "";
+
+                        string isCorrection = settings.ClassType != EnumClassType.Segregation ? lineSplit.Length > 4 && lineSplit[4] != "" ? lineSplit[4].ToLower() : "no" : lineSplit.Length > 3 && lineSplit[3] != "" ? lineSplit[3].ToLower() : "no";
+                        if (isCorrection == "yes")
+                            continue;
+                        
+                        if (!string.IsNullOrEmpty(ClassName) && !listFilteredClass.Contains(ClassName))
+                            continue;
+
+                        var tempPath = tempImageList.FirstOrDefault(temp => temp.ImageName == fileName);
+                        if (tempPath == null){
+                            if(!listNotFoundImages.Contains(fileName))
+                                listNotFoundImages.Add(fileName);
+                            continue;
+                        }
+
+                        string strSourcePath = tempPath.ImagePath;
+                        if (!string.IsNullOrEmpty(strSourcePath))
+                        {
+                            string strDesImagePath = strDataPath + "\\" + fileName;
+                            if (bIsMoveImagesToRetrieve)
+                            {
+                                if (Alphaleonis.Win32.Filesystem.File.Exists(strSourcePath))
+                                    Alphaleonis.Win32.Filesystem.File.Move(strSourcePath, strDesImagePath);
+                                else
+                                    nImageCount--;
+                            }
+                            else
+                            {
+                                if(!Alphaleonis.Win32.Filesystem.File.Exists(strDesImagePath))
+                                    Alphaleonis.Win32.Filesystem.File.Copy(strSourcePath, strDesImagePath, true);
+                                else
+                                    nImageCount--;
+                            }
+
+                            nImageCount++;
+                        }
+                    }
+                }
+                
+                OnWorkerMethodComplete("Complete");
+                if (nImageCount == 0)
+                {
+                    System.Windows.MessageBox.Show("No Images are Retrieved from loaded image path..", "Not found", MessageBoxButton.OK,
+                            MessageBoxImage.Information, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+                    Utilities.LogMessage("No Images are Retrieved from loaded image path.", 0);
+
+                    if (Directory.Exists(strDataPath))
+                        Directory.Delete(strDataPath);
+                }
+                else if (nImageCount > 0)
+                {
+                    string strNotFound = "";
+                    if(listNotFoundImages.Count > 0){
+                        for (int n = 0; n < listNotFoundImages.Count; n++)
+                            sb.AppendLine((n + 1) + ". " + listNotFoundImages[n]);
+
+                        File.AppendAllText(strDataPath + @"\Validate Report.txt", sb.ToString());
+                        strNotFound = "Report of " + listNotFoundImages.Count + " Images not found and ";
+                    }
+
+                    if (bIsMoveImagesToRetrieve)
+                        Dispatcher.Invoke(() => ResetApplication());
+
+                    string strMessage = "";
+                    if (bIsMoveImagesToRetrieve)
+                        strMessage = strNotFound + nImageCount + " Images in CSV are moved to Path below \n" + strDataPath;
+                    else
+                        strMessage = strNotFound + nImageCount + " Images in CSV are copied to Path below \n" + strDataPath;
+
+                    System.Windows.MessageBox.Show(strMessage, "Success", MessageBoxButton.OK, MessageBoxImage.Information, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+                }
+                Utilities.LogMessage("Validated Images from CSV Retrieved", 0);
+            }
+
+            catch (Exception ex) when (ex is PathTooLongException || ex is DirectoryNotFoundException)
+            {
+                OnWorkerMethodComplete("Complete");
+                System.Windows.MessageBox.Show("The specified Output Data path, file name, or both are too long..!\nPlease select proper path in settings->Output Data Path..", "Long Path Error", MessageBoxButton.OK,
+                    MessageBoxImage.Error, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+            }
+
+            catch (System.Exception ex)
+            {
+                labelEvent.Set();
+                OnWorkerMethodComplete("Complete");
+                System.Windows.MessageBox.Show("Something went wrong..!\n" + ex.Message, "Exception", MessageBoxButton.OK, MessageBoxImage.Error,
+                        MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+                Utilities.LogMessage("MainWindow::RetrieveValidatedImages: " + ex.Message, 9);
+            }
+        }
+
+        private bool IsDiskSpaceOK(string DestinationDirectory)
+        {
+            ulong SourceImageSize = 0;
+            List<string> listprocessedImages = new List<string>();
+            for (int count = 0; count < ListDatasheetImportData.Count; count++)
+            {
+                for (int lines = 0; lines < ListDatasheetImportData[count].ListImportData.Count; lines++)
+                {
+                    string[] lineSplit = ListDatasheetImportData[count].ListImportData[lines];
+                    if (IsColHeaderLine(lineSplit))
+                        continue;
+
+                    string fileName = lineSplit[0].Trim().ToString();
+                    var tempPath = ImageMenuList.FirstOrDefault(temp => temp.ImageName == fileName);
+                    if (tempPath == null)
+                        continue;
+
+                    string strSourcePath = tempPath.ImagePath;
+                    if (listprocessedImages.Contains(strSourcePath))
+                        continue;
+
+                    if (!string.IsNullOrEmpty(strSourcePath))
+                    {
+                        try
+                        {
+                            Alphaleonis.Win32.Filesystem.FileInfo file = new Alphaleonis.Win32.Filesystem.FileInfo(strSourcePath);
+                            SourceImageSize += Convert.ToUInt64(file.Length);
+                            listprocessedImages.Add(strSourcePath);
+                        }
+                        catch { }
+                    }
+                }
+            }
+
+            bool isDiskSpaceOk = Utilities.CheckDiskSpaceOK(DestinationDirectory, SourceImageSize);
+            return isDiskSpaceOk;
+        }
+
+        public void LoadPredictionMetaDataFromText()
+        {
+            try
+            {
+                labelEvent.Reset();
+                SaveEvent.Reset();
+                CleanupLoadedData(true);
+                bool blnStatus = true;
+
+                for (int index = 0; index < settings.ImportFilePath.Length; index++)
+                {
+                    List<string> listPredictionlines = File.ReadAllLines(settings.ImportFilePath[index]).ToList();
+                    if (!(listPredictionlines.Count > 0 && listPredictionlines.Exists(item => item.Contains("Predicted:"))))
+                    {
+                        OnWorkerMethodComplete("complete");
+                        System.Windows.MessageBox.Show("Invalid Prediction text file..!\nPlease select proper Text file", "File Import Failed", MessageBoxButton.OK, MessageBoxImage.Error,
+                                    MessageBoxResult.None, System.Windows.MessageBoxOptions.DefaultDesktopOnly);
+                        blnStatus = false;
+                        break;
+                    }
+                    listPredictionlines.Add("");
+                    Dispatcher.Invoke(() => progressBar.pbStatus.Maximum = listPredictionlines.Count);
+                    for (int lines = 0; lines < listPredictionlines.Count; lines++)
+                    {
+                        Dispatcher.Invoke(() => progressBar.pbStatus.Value = lines);
+
+                        if (listPredictionlines[lines] == string.Empty || listPredictionlines[lines].Contains("Predict"))
+                            continue;
+
+                        string ImageName = listPredictionlines[lines].Trim();
+                        char strImageType = ImageName.Contains(settings.SinglePhase) ? 'S' : ImageName.Contains(settings.PhaseContrast) ? 'P' : ' ';
+                        ImageListBox curImageBox = ProcessedImageBox.Find(item => item.ImageBoxName == ImageName);
+
+                        while (listPredictionlines[++lines].Contains("Predict"))
+                        {
+                            string[] tempPredict = listPredictionlines[lines].Split(':');
+
+                            if (tempPredict.Length < 2 && string.IsNullOrWhiteSpace(tempPredict[1]))
+                                continue;
+
+                            string[] arrPredictScore = Regex.Split(tempPredict[1].Trim(), @"\s+");// tempPredict[1].Trim().Split(new char[] { ' ', '\t' });
+                            if (arrPredictScore.Length < 5)
+                                continue;
+
+                            string strClassType = arrPredictScore.Length > 5 ? "Polyline" : "Rectangle";
+                            int a;
+                            if (int.TryParse(arrPredictScore[0], out a))
+                                continue;
+
+                            string strClassAlias = arrPredictScore[0].Trim();
+                            if (strClassAlias == string.Empty)
+                                continue;
+
+                            bool bIsValidScore = true;
+                            double b;
+                            for (int i = 1; i < arrPredictScore.Length; i++)
+                            {
+                                if (!double.TryParse(arrPredictScore[i], out b))
+                                {
+                                    bIsValidScore = false;
+                                    break;
+                                }
+                            }
+                            if (!bIsValidScore) continue;
+
+                            string strClassID = "-1";
+                            string strClassName = "";
+                            foreach (var strClass in settings.dictEVSupervisorClass)
+                            {
+                                if ((strClass.Value.Split('(', ')').Length > 1 ? strClass.Value.Split('(', ')')[1].ToUpper() : "") == strClassAlias.ToUpper())
+                                {
+                                    strClassID = strClass.Key.ToString();
+                                    strClassName = strClass.Value.ToString();
+                                    break;
+                                }
+                            }
+
+                            ClassFolderStat curclassFolder = ListClassFolderStat.FirstOrDefault(item => item.ClassAliasName.ToUpper() == strClassAlias.ToUpper());
+                            if (curclassFolder == null)
+                            {
+                                ListClassFolderStat.Add(new ClassFolderStat
+                                {
+                                    ClassCount = 1,
+                                    ClassAliasName = strClassAlias,
+                                    ClassID = strClassID,
+                                    SingleSpotCount = strImageType == 'S' ? 1 : 0,
+                                    PhaseContrastCount = strImageType == 'P' ? 1 : 0
+                                });
+                            }
+                            else
+                            {
+                                curclassFolder.ClassCount++;
+                                if (strImageType == 'S')
+                                    curclassFolder.SingleSpotCount++;
+                                else if (strImageType == 'P')
+                                    curclassFolder.PhaseContrastCount++;
+                            }
+
+                            EnumSelectedShape shape = strClassType == "Rectangle" ? EnumSelectedShape.Rectangle : strClassType == "Circle" ?
+                                        EnumSelectedShape.Circle : strClassType == "Polyline" ? EnumSelectedShape.Polyline : EnumSelectedShape.Null;
+
+                            strClassName = string.IsNullOrEmpty(strClassName) ? strClassAlias + "(" + strClassAlias + ")" : strClassName;
+
+                            ImageClass curImageclass = new ImageClass(strClassID, strClassName);
+                            curImageclass.Shape = shape;
+                            string shapeName = strClassType == "Rectangle" ? "rect" : strClassType == "Circle" ? "circ" : strClassType == "Polyline" ? "poly" : "";
+
+                            double X = 0, Y = 0, Width = 0, Height = 0;
+                            List<double> all_point_x = new List<double>();
+                            List<double> all_point_y = new List<double>();
+
+                            if (shape == EnumSelectedShape.Rectangle || shape == EnumSelectedShape.Circle)
+                            {
+                                X = Convert.ToDouble(arrPredictScore[1]);
+                                Y = Convert.ToDouble(arrPredictScore[2]);
+                                double Xmax = Convert.ToDouble(arrPredictScore[3]);
+                                double Ymax = Convert.ToDouble(arrPredictScore[4]);
+                                Width = Math.Round(Xmax - X, 3);
+                                Height = Math.Round(Ymax - Y, 3);
+
+                                curImageclass.ShapeCoordinates = "{\"name\":\"" + shapeName + "\", \"x\":" + X + ", \"y\": " + Y +
+                                                                ", \"width\": " + Width + ", \"height\": " + Height + " }";
+                            }
+
+                            else if (shape == EnumSelectedShape.Polyline)
+                            {
+                                List<string> subString_x = new List<string>();
+                                List<string> subString_y = new List<string>();
+
+                                var arrTemp = arrPredictScore.ToList();
+                                arrTemp.RemoveAt(0);
+                                subString_x.AddRange(arrTemp.GetRange(0, arrTemp.Count / 2));
+                                subString_y.AddRange(arrTemp.GetRange(subString_x.Count, arrTemp.Count / 2));
+
+                                all_point_x = subString_x.Select(double.Parse).ToList();
+                                all_point_y = subString_y.Select(double.Parse).ToList();
+                                curImageclass.ShapeCoordinates = "{\"name\":\"" + shapeName + "\", \"all_points_x\": [" +
+                                                    String.Join(", ", all_point_x) + "], \"all_points_y\": [" + String.Join(", ", all_point_y) + "] }";
+                            }
+
+                            curImageclass.XCoordinate = X;
+                            curImageclass.YCoordinate = Y;
+                            curImageclass.Width = Width;
+                            curImageclass.Height = Height;
+                            curImageclass.All_Points_X = all_point_x;
+                            curImageclass.All_Points_Y = all_point_y;
+
+                            bool bReviewed = false;
+                            curImageclass.Reviewed = bReviewed;
+                            if (curImageBox == null)
+                            {
+                                curImageBox = new ImageListBox(ImageName);
+                                ProcessedImageBox.Add(curImageBox);
+                            }
+                            curImageBox.ListImageClass.Add(curImageclass);
+                        }
+                        lines--;
+                    }
+
+                }
+
+                if (blnStatus)
+                {
+                    ImageClassMatching();
+                    this.Dispatcher.Invoke(() =>
+                    {
+                        for (int i = 0; i < settings.ImportFilePath.Length; i++)
+                            System.IO.File.SetAttributes(settings.ImportFilePath[i], System.IO.FileAttributes.ReadOnly);
+
+                        OnWorkerMethodComplete("complete");
+                        if (ImageMenuList.Count > 0)
+                            ListBoxImages_SelectionChanged(null, null);
+                        MessageBox.Show("Selected prediction file loaded successfully.", "Success", MessageBoxButton.OK, MessageBoxImage.Information,
+                            MessageBoxResult.None, System.Windows.MessageBoxOptions.DefaultDesktopOnly);
+                        Utilities.LogMessage("Import Prediction File Completed", 0);
+                        labelEvent.Set();
+                        SaveEvent.Set();
+                    });
+                }
+                else
+                {
+                    this.Dispatcher.Invoke(() =>
+                    {
+                        labelEvent.Set();
+                        SaveEvent.Set();
+                        OnWorkerMethodComplete("complete");
+                        CleanupLoadedData();
+                        settings.ImportFilePath = null;
+                        if (ImageMenuList.Count > 0)
+                            ListBoxImages_SelectionChanged(null, null);
+                    });
+                }
+            }
+
+            catch (System.Exception ex)
+            {
+                OnWorkerMethodComplete("complete");
+                CleanupLoadedData();
+                settings.ImportFilePath = null;
+                labelEvent.Set();
+                SaveEvent.Set();
+                Utilities.LogMessage("Mainwindow::LoadPredictionMetaDataFromText " + ex.Message, 9);
+                System.Windows.MessageBox.Show("Invalid file..! Loading failed.", "Error", MessageBoxButton.OK, MessageBoxImage.Warning, MessageBoxResult.None, System.Windows.MessageBoxOptions.DefaultDesktopOnly);
+            }
+        }
+
+        private void FormatImageAndExport(string strImageFormat)
+        {
+            try
+            {
+                string strOutPutPath = settings.CSVExportPath + @"\Output Data\Image Formatted\" + DateTime.Now.ToString("ddMMyyyy_HHmmss");
+                if (!Directory.Exists(strOutPutPath))
+                    Directory.CreateDirectory(strOutPutPath);
+
+                bool isDiskSpaceOk = Utilities.CheckDiskSpaceOK(strOutPutPath, settings.LoadedImageSize);
+
+                if (!isDiskSpaceOk)
+                {
+                    OnWorkerMethodComplete("Complete");
+                    System.Windows.MessageBox.Show("Output disk was full, Cannot export converted images..! Free Some space and try again..", "No Storage Space", MessageBoxButton.OK,
+                            MessageBoxImage.Error, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+                    if (Directory.Exists(strOutPutPath))
+                        Directory.Delete(strOutPutPath);
+                    return;
+                }
+
+                Dispatcher.Invoke(() => progressBar.pbStatus.Maximum = ImageAnalysisList.Count);
+                int i = 0;
+                foreach (ImageMenu curImage in ImageMenuList)
+                {
+                    Dispatcher.Invoke(() => progressBar.pbStatus.Value = ++i);
+                    
+                    string strDesImagePath = Alphaleonis.Win32.Filesystem.Path.Combine(strOutPutPath, Alphaleonis.Win32.Filesystem.Path.GetFileNameWithoutExtension(curImage.ImageName) + strImageFormat);
+                    if (strImageFormat == ".jpeg")
+                    {
+                        System.Drawing.Bitmap bmp = (System.Drawing.Bitmap)System.Drawing.Image.FromFile(curImage.ImagePath);
+                        bmp.Save(strDesImagePath, System.Drawing.Imaging.ImageFormat.Jpeg);
+                    }
+                    else
+                    {
+                        System.Drawing.Bitmap bmp = (System.Drawing.Bitmap)System.Drawing.Image.FromFile(curImage.ImagePath);
+                        bmp.Save(strDesImagePath, System.Drawing.Imaging.ImageFormat.Bmp);
+                    }
+                    //Alphaleonis.Win32.Filesystem.File.Copy(curImage.ImagePath, strDesImagePath, true);
+                }
+
+                OnWorkerMethodComplete("Complete");
+                System.Windows.MessageBox.Show("Converted Images are exported to path below \n" + strOutPutPath, "Success", MessageBoxButton.OK,
+                        MessageBoxImage.Information, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+            }
+
+            catch (Exception ex) when (ex is PathTooLongException || ex is DirectoryNotFoundException)
+            {
+                OnWorkerMethodComplete("Complete");
+                System.Windows.MessageBox.Show("The specified Output Data path, file name, or both are too long..!\nPlease select proper path in settings->Output Data Path..", "Long Path Error", MessageBoxButton.OK,
+                    MessageBoxImage.Error, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+            }
+            catch (System.Exception ex)
+            {
+                OnWorkerMethodComplete("Complete");
+                System.Windows.MessageBox.Show("Something went wrong..!\n" + ex.Message, "Exception", MessageBoxButton.OK, MessageBoxImage.Error,
+                        MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+            }
+        }
+
+        private void RemoveMultipleOverlays()
+        {
+            try
+            {
+                labelEvent.Reset();
+                ImageMenu[] arrImageMenuList = ImageMenuList.Where(item => item.MenuItemBrush != ImageMenuBrushes[0]).ToArray();
+
+                int nOverlayCount = 0;
+                Dispatcher.Invoke(() => progressBar.pbStatus.Maximum = arrImageMenuList.Length);
+                for (int nCount = 0; nCount < arrImageMenuList.Length; nCount++)
+                {
+                    Dispatcher.Invoke(() => progressBar.pbStatus.Value = nCount);
+                    ImageMenu currentImage = arrImageMenuList[nCount];
+                    ImageListBox curImageBox = currentImage.ImageBox;
+
+                    var listTempClass = curImageBox.ListImageClass.GroupBy(item => item.ClassAlias).Select(a => new List<ImageClass>(a)).ToList();
+                    if (!listTempClass.Any(c => c.Count > 1))
+                        continue;
+
+                    //Removes intersection of 2 overlays with different classes also
+                    //if (curImageBox.ListImageClass.Count == 1)
+                    //    continue;
+
+                    //if (curImageBox.ListImageClass.ToList().Exists(item => item.Shape == EnumSelectedShape.Rectangle))
+                    //{
+                    //    for (int i = 0; i < curImageBox.ListImageClass.Count; i++)
+                    //    {
+                    //        ImageClass curImageClass = curImageBox.ListImageClass[i];
+                    //        Rect curRect = new Rect(curImageClass.XCoordinate, curImageClass.YCoordinate, curImageClass.Width, curImageClass.Height);
+
+                    //        bool bIsIntersect = false;
+                    //        int j = i + 1;
+                    //        while (j < curImageBox.ListImageClass.Count)
+                    //        {
+                    //            ImageClass nextImageClass = curImageBox.ListImageClass[j];
+                    //            Rect nextRect = new Rect(nextImageClass.XCoordinate, nextImageClass.YCoordinate, nextImageClass.Width, nextImageClass.Height);
+                    //            if (nextRect.IntersectsWith(curRect))
+                    //            {
+                    //                bIsIntersect = true;
+                    //                break;
+                    //            }
+                    //            j++;
+                    //        }
+
+                    //        if (bIsIntersect)
+                    //        {
+                    //            Dispatcher.Invoke(() =>
+                    //            {
+                    //                lock (curImageBox.ListImageClass)
+                    //                {
+                    //                    curImageBox.ListImageClass.Remove(curImageClass);
+                    //                    i--;
+                    //                }
+                    //            });
+
+                    //            if (ListDatasheetImportData.Count > 0)
+                    //            {
+                    //                var tempImportData = ListDatasheetImportData.FirstOrDefault(temp => temp.DatasheetName == curImageClass.ImportDatasheetName);
+                    //                string strShapeCoord = Regex.Replace(curImageClass.ShapeCoordinates, @"[""{} ]", "");
+                    //                string[] arrSeleImportData = tempImportData.ListImportData.FirstOrDefault(item => item[0].Trim() == curImageBox.ImageBoxName && Regex.Replace(item[2], @"[""{} ]", "") == strShapeCoord);
+                    //                if (tempImportData != null)
+                    //                {
+                    //                    tempImportData.ListImportData.Remove(arrSeleImportData);
+                    //                }
+
+                    //                char strImageType = curImageBox.ImageBoxName.Contains(settings.SinglePhase) ? 'S' : curImageBox.ImageBoxName.Contains(settings.PhaseContrast) ? 'P' : ' ';
+                    //                var curClassStat = ListClassFolderStat.FirstOrDefault(item => item.ImportDatasheetName == curImageClass.ImportDatasheetName && item.ClassAliasName.ToUpper() == curImageClass.ClassAlias.ToUpper());
+                    //                if (curClassStat != null)
+                    //                {
+                    //                    curClassStat.ClassCount--;
+                    //                    if (strImageType == 'S')
+                    //                        curClassStat.SingleSpotCount--;
+                    //                    else if (strImageType == 'P')
+                    //                        curClassStat.PhaseContrastCount--;
+                    //                }
+                    //            }
+
+                    //            nOverlayCount++;
+                    //        }
+                    //    }
+                    //}
+                    //else if (curImageBox.ListImageClass.ToList().Exists(item => item.Shape == EnumSelectedShape.Polyline))
+                    //{
+                    //    for (int i = 0; i < curImageBox.ListImageClass.Count; i++)
+                    //    {
+                    //        ImageClass curImageClass = curImageBox.ListImageClass[i];
+                    //        PathGeometry curGeometry = new PathGeometry();
+                    //        PointCollection points = new PointCollection();
+                    //        for (int index = 0; index < curImageClass.All_Points_X.Count; index++)
+                    //            points.Add(new Point(curImageClass.All_Points_X[index], curImageClass.All_Points_Y[index]));
+
+                    //        curGeometry.Figures.Add(new PathFigure() { Segments = { new PolyLineSegment(points, true) } });
+
+                    //        bool bIsIntersect = false;
+                    //        int j = i + 1;
+                    //        while (j < curImageBox.ListImageClass.Count)
+                    //        {
+                    //            ImageClass nextImageClass = curImageBox.ListImageClass[j];
+                    //            PathGeometry nextGeometry = new PathGeometry();
+                    //            PointCollection pointsNext = new PointCollection();
+                    //            for (int index = 0; index < nextImageClass.All_Points_X.Count; index++)
+                    //                pointsNext.Add(new Point(nextImageClass.All_Points_X[index], nextImageClass.All_Points_Y[index]));
+
+                    //            nextGeometry.Figures.Add(new PathFigure() { Segments = { new PolyLineSegment(pointsNext, true) } });
+
+                    //            CombinedGeometry combinedGeometry = new CombinedGeometry();
+                    //            combinedGeometry.GeometryCombineMode = GeometryCombineMode.Intersect;
+                    //            combinedGeometry.Geometry1 = curGeometry;
+                    //            combinedGeometry.Geometry2 = nextGeometry;
+
+                    //            if (combinedGeometry.GetArea() > 0)
+                    //            {
+                    //                bIsIntersect = true;
+                    //                break;
+                    //            }
+                    //            j++;
+                    //        }
+
+                    //        if (bIsIntersect)
+                    //        {
+                    //            Dispatcher.Invoke(() =>
+                    //            {
+                    //                lock (curImageBox.ListImageClass)
+                    //                {
+                    //                    curImageBox.ListImageClass.Remove(curImageClass);
+                    //                }
+                    //            });
+
+                    //            if (ListDatasheetImportData.Count > 0)
+                    //            {
+                    //                var tempImportData = ListDatasheetImportData.FirstOrDefault(temp => temp.DatasheetName == curImageClass.ImportDatasheetName);
+                    //                string strShapeCoord = Regex.Replace(curImageClass.ShapeCoordinates, @"[""{} ]", "");
+                    //                string[] arrSeleImportData = tempImportData.ListImportData.FirstOrDefault(item => item[0].Trim() == curImageBox.ImageBoxName && Regex.Replace(item[2], @"[""{} ]", "") == strShapeCoord);
+                    //                if (tempImportData != null)
+                    //                {
+                    //                    tempImportData.ListImportData.Remove(arrSeleImportData);
+                    //                }
+
+                    //                char strImageType = curImageBox.ImageBoxName.Contains(settings.SinglePhase) ? 'S' : curImageBox.ImageBoxName.Contains(settings.PhaseContrast) ? 'P' : ' ';
+                    //                var curClassStat = ListClassFolderStat.FirstOrDefault(item => item.ImportDatasheetName == curImageClass.ImportDatasheetName && item.ClassAliasName.ToUpper() == curImageClass.ClassAlias.ToUpper());
+                    //                if (curClassStat != null)
+                    //                {
+                    //                    curClassStat.ClassCount--;
+                    //                    if (strImageType == 'S')
+                    //                        curClassStat.SingleSpotCount--;
+                    //                    else if (strImageType == 'P')
+                    //                        curClassStat.PhaseContrastCount--;
+                    //                }
+                    //            }
+
+                    //            nOverlayCount++;
+                    //        }
+                    //    }
+                    //}
+
+                    //Removes only intersection of 2 overlays with same class
+                    foreach (var curListItem in listTempClass)
+                    {
+                        if (curListItem.Count == 1)
+                            continue;
+
+                        if (curListItem.Exists(item => item.Shape == EnumSelectedShape.Rectangle))
+                        {
+                            for (int i = 0; i < curListItem.Count; i++)
+                            {
+                                ImageClass curImageClass = curListItem[i];
+                                Rect curRect = new Rect(curImageClass.XCoordinate, curImageClass.YCoordinate, curImageClass.Width, curImageClass.Height);
+
+                                bool bIsIntersect = false;
+                                int j = i + 1;
+                                while (j < curListItem.Count)
+                                {
+                                    ImageClass nextImageClass = curListItem[j];
+                                    Rect nextRect = new Rect(nextImageClass.XCoordinate, nextImageClass.YCoordinate, nextImageClass.Width, nextImageClass.Height);
+                                    if (nextRect.IntersectsWith(curRect))
+                                    {
+                                        bIsIntersect = true;
+                                        break;
+                                    }
+                                    j++;
+                                }
+
+                                if (bIsIntersect)
+                                {
+                                    Dispatcher.Invoke(() =>
+                                    {
+                                        lock (curImageBox.ListImageClass)
+                                        {
+                                            curImageBox.ListImageClass.Remove(curImageClass);
+                                        }
+                                    });
+
+                                    if (ListDatasheetImportData.Count > 0)
+                                    {
+                                        var tempImportData = ListDatasheetImportData.FirstOrDefault(temp => temp.DatasheetName == curImageClass.ImportDatasheetName);
+                                        string strShapeCoord = Regex.Replace(curImageClass.ShapeCoordinates, @"[""{} ]", "");
+                                        string[] arrSeleImportData = tempImportData.ListImportData.FirstOrDefault(item => item[0].Trim() == curImageBox.ImageBoxName && Regex.Replace(item[2], @"[""{} ]", "") == strShapeCoord);
+                                        if (tempImportData != null)
+                                        {
+                                            tempImportData.ListImportData.Remove(arrSeleImportData);
+                                        }
+
+                                        char strImageType = curImageBox.ImageBoxName.Contains(settings.SinglePhase) ? 'S' : curImageBox.ImageBoxName.Contains(settings.PhaseContrast) ? 'P' : ' ';
+                                        var curClassStat = ListClassFolderStat.FirstOrDefault(item => item.ImportDatasheetName == curImageClass.ImportDatasheetName && item.ClassAliasName.ToUpper() == curImageClass.ClassAlias.ToUpper());
+                                        if (curClassStat != null)
+                                        {
+                                            curClassStat.ClassCount--;
+                                            if (strImageType == 'S')
+                                                curClassStat.SingleSpotCount--;
+                                            else if (strImageType == 'P')
+                                                curClassStat.PhaseContrastCount--;
+                                        }
+                                    }
+
+                                    nOverlayCount++;
+                                }
+                            }
+                        }
+                        else if (curListItem.Exists(item => item.Shape == EnumSelectedShape.Polyline))
+                        {
+                            for (int i = 0; i < curListItem.Count; i++)
+                            {
+                                ImageClass curImageClass = curListItem[i];
+                                PathGeometry curGeometry = new PathGeometry();
+                                PointCollection points = new PointCollection();
+                                for (int index = 0; index < curImageClass.All_Points_X.Count; index++)
+                                    points.Add(new Point(curImageClass.All_Points_X[index], curImageClass.All_Points_Y[index]));
+
+                                curGeometry.Figures.Add(new PathFigure() { Segments = { new PolyLineSegment(points, true) } });
+
+                                bool bIsIntersect = false;
+                                int j = i + 1;
+                                while (j < curListItem.Count)
+                                {
+                                    ImageClass nextImageClass = curListItem[j];
+                                    PathGeometry nextGeometry = new PathGeometry();
+                                    PointCollection pointsNext = new PointCollection();
+                                    for (int index = 0; index < nextImageClass.All_Points_X.Count; index++)
+                                        pointsNext.Add(new Point(nextImageClass.All_Points_X[index], nextImageClass.All_Points_Y[index]));
+
+                                    nextGeometry.Figures.Add(new PathFigure() { Segments = { new PolyLineSegment(pointsNext, true) } });
+
+                                    CombinedGeometry combinedGeometry = new CombinedGeometry();
+                                    combinedGeometry.GeometryCombineMode = GeometryCombineMode.Intersect;
+                                    combinedGeometry.Geometry1 = curGeometry;
+                                    combinedGeometry.Geometry2 = nextGeometry;
+
+                                    if (combinedGeometry.GetArea() > 0)
+                                    {
+                                        bIsIntersect = true;
+                                        break;
+                                    }
+                                    j++;
+                                }
+
+                                if (bIsIntersect)
+                                {
+                                    Dispatcher.Invoke(() =>
+                                    {
+                                        lock (curImageBox.ListImageClass)
+                                        {
+                                            curImageBox.ListImageClass.Remove(curImageClass);
+                                        }
+                                    });
+
+                                    if (ListDatasheetImportData.Count > 0)
+                                    {
+                                        var tempImportData = ListDatasheetImportData.FirstOrDefault(temp => temp.DatasheetName == curImageClass.ImportDatasheetName);
+                                        string strShapeCoord = Regex.Replace(curImageClass.ShapeCoordinates, @"[""{} ]", "");
+                                        string[] arrSeleImportData = tempImportData.ListImportData.FirstOrDefault(item => item[0].Trim() == curImageBox.ImageBoxName && Regex.Replace(item[2], @"[""{} ]", "") == strShapeCoord);
+                                        if (tempImportData != null)
+                                        {
+                                            tempImportData.ListImportData.Remove(arrSeleImportData);
+                                        }
+
+                                        char strImageType = curImageBox.ImageBoxName.Contains(settings.SinglePhase) ? 'S' : curImageBox.ImageBoxName.Contains(settings.PhaseContrast) ? 'P' : ' ';
+                                        var curClassStat = ListClassFolderStat.FirstOrDefault(item => item.ImportDatasheetName == curImageClass.ImportDatasheetName && item.ClassAliasName.ToUpper() == curImageClass.ClassAlias.ToUpper());
+                                        if (curClassStat != null)
+                                        {
+                                            curClassStat.ClassCount--;
+                                            if (strImageType == 'S')
+                                                curClassStat.SingleSpotCount--;
+                                            else if (strImageType == 'P')
+                                                curClassStat.PhaseContrastCount--;
+                                        }
+                                    }
+
+                                    nOverlayCount++;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                labelEvent.Set(); 
+                Dispatcher.Invoke(() =>
+                {
+                    listBoxImages.SelectedIndex = -1;
+                    ResetWindow();
+                });
+                //LoadAllVisualizationGraphs();
+                OnWorkerMethodComplete("Complete");
+                System.Windows.MessageBox.Show(nOverlayCount + " Overlays are removed successfully.", "Success", MessageBoxButton.OK,
+                        MessageBoxImage.Information, MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+            }
+
+            catch (System.Exception ex)
+            {
+                OnWorkerMethodComplete("Complete");
+                System.Windows.MessageBox.Show("Something went wrong..!\n" + ex.Message, "Exception", MessageBoxButton.OK, MessageBoxImage.Error,
+                        MessageBoxResult.None, MessageBoxOptions.DefaultDesktopOnly);
+            }
+        }
+
+        private ImageClass GetLargeAreaPolyShapeClass(List<ImageClass> listImageClass)
+        {
+            double areaLarege = 0;
+            ImageClass largeImageClass = null;
+            for(int i = 0; i < listImageClass.Count; i++)
+            {
+                double area = GetAreaFromPolygon(listImageClass[i]);
+                if(area > areaLarege)
+                {
+                    areaLarege = area;
+                    largeImageClass = listImageClass[i];
+                }
+            }
+
+            return largeImageClass;
+        }
+    }
+
+    public class IgnoreEmptyEnumerableResolver : CamelCasePropertyNamesContractResolver
+    {
+        protected override JsonProperty CreateProperty(MemberInfo member,
+            MemberSerialization memberSerialization)
+        {
+            var property = base.CreateProperty(member, memberSerialization);
+
+            if (property.PropertyType != typeof(string) &&
+                typeof(IEnumerable).IsAssignableFrom(property.PropertyType))
+            {
+                property.ShouldSerialize = instance =>
+                {
+                    IEnumerable enumerable = null;
+                // this value could be in a public field or public property
+                switch (member.MemberType)
+                    {
+                        case MemberTypes.Property:
+                            enumerable = instance
+                                .GetType()
+                                .GetProperty(member.Name)
+                                ?.GetValue(instance, null) as IEnumerable;
+                            break;
+                        case MemberTypes.Field:
+                            enumerable = instance
+                                .GetType()
+                                .GetField(member.Name)
+                                .GetValue(instance) as IEnumerable;
+                            break;
+                    }
+
+                    return enumerable == null ||
+                            enumerable.GetEnumerator().MoveNext();
+                // if the list is null, we defer the decision to NullValueHandling
+            };
+            }
+
+            return property;
+        }
+    }
+}

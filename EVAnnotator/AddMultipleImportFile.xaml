@@ -1,0 +1,86 @@
+﻿<Window x:Class="GenieSupervisor.AddMultipleImportFile"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:GenieSupervisor"
+        xmlns:telerik="http://schemas.telerik.com/2008/xaml/presentation"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        mc:Ignorable="d"
+        TextElement.FontWeight="Regular"
+        TextElement.FontSize="13"
+        Left="500" Top="300" WindowStyle="None" BorderThickness="1" Width="500" Height="auto" MaxWidth="800" MaxHeight="500" BorderBrush="Black"
+        WindowStartupLocation="Manual" ResizeMode="NoResize" ShowInTaskbar="False" SizeToContent="WidthAndHeight">
+    <Grid Background="#FF686262">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="30"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <StackPanel Orientation="Horizontal" Grid.Row="0" VerticalAlignment="Top" HorizontalAlignment="Stretch" Height="30">
+            <Label x:Name="lblHeading" Content="Add Multiple CSV"  HorizontalAlignment="Left" FontSize="15" Foreground="White" FontStyle="Italic" Margin="10,0,0,0"/>
+        </StackPanel>
+        <Border Cursor="Hand" Height="30" Width="30" CornerRadius="50" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="2,0">
+            <Border.Background>
+                <RadialGradientBrush>
+                    <GradientStop Color="#FF686262" Offset="0.968"/>
+                    <GradientStop Color="Red"/>
+                </RadialGradientBrush>
+            </Border.Background>
+            <TextBlock TextWrapping="Wrap" Height="30" Width="30" FontSize="18" TextAlignment="Center" Foreground="White" FontWeight="Bold" VerticalAlignment="Center" ToolTip="Close" HorizontalAlignment="Center" Text="x" PreviewMouseLeftButtonDown="ButtonClose_Click"></TextBlock>
+        </Border>
+        <Grid x:Name="gridMain" Grid.Row="1" Background="#FF4C3F3F">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="50" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+            </Grid.RowDefinitions>
+            <StackPanel x:Name="spMain" Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0">
+                <Label x:Name="lblLabel" Content="Add Files and Click on Done after adding files" Foreground="Wheat" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <telerik:RadButton x:Name="btnAddCSV" CornerRadius="10" Content="Add CSV" HorizontalAlignment="Right" BorderBrush="Black" Background="#FFE7E7E0" Foreground="Brown" FontSize="15" VerticalContentAlignment="Center" Width="auto" Height="23" Padding="15,0" ToolTip="Add csv files" Click="btnAddCsv_Click" Margin="10,0,0,0"/>
+                <telerik:RadButton x:Name="btnDone" CornerRadius="10" Content="Done" HorizontalAlignment="Right" BorderBrush="Black" Background="#FFE7E7E0" Foreground="Brown"  FontSize="15" VerticalContentAlignment="Center" Width="auto" Height="23" Padding="20,0" ToolTip="Load files and close" Click="btnDone_Click" Margin="10,0,15,0"/>
+            </StackPanel>
+            <!--<StackPanel x:Name="spModeSelection" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Left" Visibility="Collapsed">
+                <Label Content="Select Data type" VerticalAlignment="Top" Height="30" Margin="0,0,10,0"/>
+                <RadioButton x:Name="radRealData" Style="{StaticResource MaterialDesignTabRadioButton}" Cursor="Hand" Margin="5" Height="30" Width="auto" IsChecked="True" Content="Ground Truth Data" />
+                <RadioButton x:Name="radPredictData" Style="{StaticResource MaterialDesignTabRadioButton}" Cursor="Hand" Margin="50,0,0,0" Height="30" Width="auto" IsChecked="False" Content="Predicted Data" />
+            </StackPanel>-->
+            <telerik:GroupBox Grid.Row="1" Header="Files Added" Margin="5,0" Foreground="White" FontSize="12" FontFamily="Tahoma" BorderBrush="White" BorderThickness="1">
+                <ListBox x:Name="listCSVFile" Grid.Row="1" Height="auto" Background="Transparent" BorderBrush="Transparent" Foreground="Wheat" ItemsSource="{Binding CSVFileList}" MinHeight="25" MaxHeight="200" 
+                         ScrollViewer.VerticalScrollBarVisibility="Auto" Padding="5,5,0,10" ContextMenuOpening="menuClear_ContextMenuOpening">
+                    <ListBox.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem x:Name="menuClear" Header="Clear All" IsEnabled="False" IsCheckable="False" PreviewMouseDown="menuClear_Click"/>
+                        </ContextMenu>
+                    </ListBox.ContextMenu>
+                </ListBox>
+            </telerik:GroupBox>
+            <telerik:RadDockPanel x:Name="spSuggestion" Grid.Row="2" Visibility="Visible" VerticalAlignment="Center" Margin="5,5">
+                <Label>
+                    <materialDesign:PackIcon Foreground="Yellow" Kind="LightbulbOn" Height="15" Width="15"/>
+                </Label>
+                <TextBlock FontWeight="Normal" FontSize="11" Width="500" TextWrapping="Wrap" Foreground="LightYellow" Text="By design, Supervisor does not allow loading of datasheets more than 1 time. This is to avoid additional labellings and inconsistencies in drawing overlays"/>
+            </telerik:RadDockPanel>
+            <Popup x:Name="popUpWait" IsOpen="False" Placement="Center" PlacementTarget="{Binding ElementName=gridMain}" AllowsTransparency="True" Margin="0">
+                <Border BorderThickness="1" Background="#FFCBCBB5" BorderBrush="Black" Height="auto" Width="auto" HorizontalAlignment="Center">
+                    <Grid Margin="5,5,5,0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="auto"/>
+                            <RowDefinition Height="35"/>
+                        </Grid.RowDefinitions>
+                        <GroupBox Header="Choose Data Type"  Grid.Row="0" Margin="5,0" FontSize="12" FontWeight="DemiBold" Foreground="Brown" FontFamily="Segoe UI" BorderBrush="Black" BorderThickness="1">
+                            <StackPanel x:Name="spModeSelection"  Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,5">
+                                <RadioButton x:Name="radRealData" Style="{StaticResource MaterialDesignTabRadioButton}" Cursor="Hand" Margin="5" Height="30" Width="auto" IsChecked="True" Content="Ground Truth Data" />
+                                <RadioButton x:Name="radPredictData" Style="{StaticResource MaterialDesignTabRadioButton}" Cursor="Hand" Margin="50,0,10,0" Height="30" Width="auto" IsChecked="False" Content="Predicted Data" />
+                            </StackPanel>
+                        </GroupBox>
+                        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,5">
+                            <Button x:Name="btnOk" Content="Ok" BorderBrush="Black" Background="#FFB7CBDD" Foreground="Brown" FontSize="15" VerticalContentAlignment="Center" Width="auto" Height="23" Padding="20,0" Click="btnModeOk_Click"/>
+                            <Button x:Name="btnCancel" Content="Cancel" BorderBrush="Black" Background="#FFB7CBDD" Foreground="Brown"  FontSize="15" VerticalContentAlignment="Center" Width="auto" Height="23" Padding="10,0" Click="btnCancel_Click" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Popup>
+
+        </Grid>
+    </Grid>
+</Window>

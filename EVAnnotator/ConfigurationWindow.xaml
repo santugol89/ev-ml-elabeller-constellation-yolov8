@@ -1,0 +1,159 @@
+﻿<Window x:Class="GenieSupervisor.ConfigurationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        xmlns:telerik="http://schemas.telerik.com/2008/xaml/presentation"
+        xmlns:local="clr-namespace:GenieSupervisor"
+        mc:Ignorable="d"
+        TextElement.FontWeight="Regular"
+        TextElement.FontSize="13"
+        TextElement.FontFamily="Segoe UI"
+        Left="300" Top="50" WindowStyle="None" BorderThickness="1" MinWidth="600" Width="auto" Height="auto" BorderBrush="Black"
+        WindowStartupLocation="CenterScreen" ResizeMode="CanResize" ShowInTaskbar="False" SizeToContent="WidthAndHeight" MouseDown="Window_MouseDown">
+    <Grid Background="#FF686262">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="30"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <StackPanel Orientation="Horizontal" Grid.Row="0" VerticalAlignment="Top" HorizontalAlignment="Stretch" Height="30">
+            <Label Content="Configuration Settings"  HorizontalAlignment="Left" FontSize="15" Foreground="White" FontStyle="Italic" Margin="10,0,0,0"/>
+        </StackPanel>
+        <Border Cursor="Hand" Height="30" Width="30" CornerRadius="50" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="2,0">
+            <Border.Background>
+                <RadialGradientBrush>
+                    <GradientStop Color="#FF686262" Offset="0.968"/>
+                    <GradientStop Color="Red"/>
+                </RadialGradientBrush>
+            </Border.Background>
+            <TextBlock TextWrapping="Wrap" Height="30" Width="30" FontSize="18" TextAlignment="Center" Foreground="White" FontWeight="Bold" VerticalAlignment="Center" ToolTip="Exit" HorizontalAlignment="Center" Text="x" PreviewMouseLeftButtonDown="ButtonSaveClose_Click"></TextBlock>
+        </Border>
+        <Grid Grid.Row="1" Background="#FF4C3F3F">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+                <RowDefinition Height="auto" />
+            </Grid.RowDefinitions>
+            <telerik:GroupBox Grid.Row="0" Header="Select Project" Margin="5,5" FontSize="15" Foreground="White" FontFamily="Segoe UI" BorderBrush="White" BorderThickness="1">
+                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Label Content="Project Name: " Margin="10,0,0,0" Width="120" VerticalAlignment="Center" FontSize="16" Foreground="Wheat"/>
+                        <ComboBox Name="cmbProject" Width="auto" MinWidth="100" Background="#FFFDFDFD" VerticalContentAlignment="Center" HorizontalAlignment="Stretch"
+                                      Height="auto" FontSize="14" Margin="10,0" VerticalAlignment="Center" SelectionChanged="cmbProject_SelectionChanged"/>
+
+                        <Border Name="AddProject" Width="25" Height="25" Background="Purple" CornerRadius="50" PreviewMouseLeftButtonDown="AddProject_Click" Cursor="Hand" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,5,0" Visibility="Collapsed">
+                            <materialDesign:PackIcon Name="packIconAddProject" Background="Purple" Foreground="White" Kind="Plus" Height="18" Width="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Border.ToolTip>
+                                <ToolTip>
+                                    <StackPanel>
+                                        <TextBlock FontStyle="Italic" Text="Add New Project" Foreground="Black"/>
+                                    </StackPanel>
+                                </ToolTip>
+                            </Border.ToolTip>
+                        </Border>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5,0,0">
+                        <Label Content="Architecture: " Margin="10,0,0,0" Width="120" VerticalAlignment="Center" FontSize="16" Foreground="Wheat"/>
+                        <ComboBox Name="cmbArchitecture" Width="auto" MinWidth="100" Background="#FFFDFDFD" VerticalContentAlignment="Center" HorizontalAlignment="Stretch"
+                                      Height="auto" FontSize="14" Margin="10,0" VerticalAlignment="Center" SelectionChanged="cmbArchitecture_SelectionChanged"/>
+                    </StackPanel>
+                </StackPanel>
+            </telerik:GroupBox>
+            <telerik:GroupBox Grid.Row="1" Header="Class File" Margin="5,5" FontSize="15" Foreground="White" FontFamily="Segoe UI" BorderBrush="White" BorderThickness="1">
+                <StackPanel Orientation="Vertical">
+                    <StackPanel x:Name="spType" Grid.Row="0" Orientation="Horizontal">
+                        <Label Content="Choose Type : " Margin="10,0,0,0" VerticalAlignment="Center" FontSize="16" Foreground="Wheat"/>
+                        <RadioButton x:Name="radRecta" Content="Rectangle/Circle" Height="25" Width="auto" Foreground="AntiqueWhite" Padding="5,1" Margin="15,0" VerticalAlignment="Center" IsChecked="True" VerticalContentAlignment="Center" Click="radClassType_Checked"/>
+                        <RadioButton x:Name="radPoly" Content="Polyline" Height="25" Width="auto" Foreground="AntiqueWhite" Padding="5,1" Margin="15,0" VerticalAlignment="Center" IsChecked="False" Visibility="Visible" VerticalContentAlignment="Center" Click="radClassType_Checked"/>
+                        <RadioButton x:Name="radAny" Content="Any" Height="25" Width="auto" Foreground="AntiqueWhite" Padding="5,1" Margin="15,0" VerticalAlignment="Center" IsChecked="False" Visibility="Collapsed" VerticalContentAlignment="Center" Click="radClassType_Checked"/>
+                        <RadioButton x:Name="radSegregation" Content="Segregation" Height="25" Width="auto" Foreground="AntiqueWhite" Padding="5,1" Margin="15,0" VerticalAlignment="Center" Visibility="Visible" IsChecked="False" VerticalContentAlignment="Center" Click="radClassType_Checked"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0" IsEnabled="False">
+                        <TextBox x:Name="txtClassPath" HorizontalAlignment="Left" Height="25" Padding="1" VerticalAlignment="Center" Width="600" Foreground="Black" BorderBrush="Black" Margin="10,0,0,0"  FontSize="14" FontFamily="Segoe UI"/>
+                        <Button x:Name="btnPickClassPath" Content="" HorizontalAlignment="Left" VerticalAlignment="Center" Width="27" Height="23" ToolTip="Browse to select Class file" Click="btnPickClassPath_Click" Margin="10,0,0,0">
+                            <Button.Background>
+                                <ImageBrush ImageSource="icon/folder_icon.png"/>
+                            </Button.Background>
+                        </Button>
+                    </StackPanel>                    
+                </StackPanel>                
+            </telerik:GroupBox>
+            <telerik:GroupBox Grid.Row="2" Header="Output Data Path" Margin="5,5" FontSize="15" Foreground="White" FontFamily="Segoe UI" BorderBrush="White" BorderThickness="1">
+                <StackPanel Orientation="Horizontal" Margin="0,5">
+                    <TextBox x:Name="txtExportCSVPath" HorizontalAlignment="Left" Height="25" Padding="1" VerticalAlignment="Center" Width="600" Foreground="Black" BorderBrush="Black" Margin="10,0,0,0"  FontSize="14" FontFamily="Segoe UI"/>
+                    <Button x:Name="btnExportCSVPath" Content="" HorizontalAlignment="Left" VerticalAlignment="Center" Width="27" Height="23" ToolTip="Select outdata path" Click="btnExportCSVPath_Click" Margin="10,0,0,0">
+                        <Button.Background>
+                            <ImageBrush ImageSource="icon/folder_icon.png"/>
+                        </Button.Background>
+                    </Button>
+                </StackPanel>
+            </telerik:GroupBox>
+            <telerik:GroupBox Grid.Row="3" Header="Model Path" Margin="5,5" FontSize="15" Foreground="White" FontFamily="Segoe UI" BorderBrush="White" BorderThickness="1" Visibility="Collapsed">
+                <StackPanel Orientation="Horizontal" Margin="0,5">
+                    <TextBox x:Name="txtModelPath" HorizontalAlignment="Left" Height="25" Padding="1" VerticalAlignment="Center" Width="600" Foreground="Black" BorderBrush="Black" Margin="10,0,0,0"  FontSize="14" FontFamily="Segoe UI"/>
+                    <Button x:Name="btnModelPath" Content="" HorizontalAlignment="Left" VerticalAlignment="Center" Width="27" Height="23" ToolTip="Select model path" Click="btnModelPath_Click" Margin="10,0,0,0">
+                        <Button.Background>
+                            <ImageBrush ImageSource="icon/folder_icon.png"/>
+                        </Button.Background>
+                    </Button>
+                </StackPanel>
+            </telerik:GroupBox>
+            <telerik:GroupBox Grid.Row="4" Header="Enable/Disable Tools" Visibility="Collapsed" Margin="5,5" FontSize="15" Foreground="White" FontFamily="Segoe UI" BorderBrush="White" BorderThickness="1">
+                <StackPanel x:Name="spChkTools" Grid.Row="0" Orientation="Horizontal" Margin="0,5">
+                    <CheckBox x:Name="chkRectangle" Content="Rectangle" Height="25" Width="auto" Padding="5,1" Margin="15,0" VerticalAlignment="Center" IsChecked="False" VerticalContentAlignment="Center" Click="chkRectangle_Checked"/>
+                    <CheckBox x:Name="chkCircle" Content="Circle" Height="25" Width="auto" Padding="5,1" Margin="15,0" VerticalAlignment="Center" IsChecked="False" VerticalContentAlignment="Center" Click="chkCircle_Checked"/>
+                    <CheckBox x:Name="chkPolygon" Content="Polyline" Height="25" Width="auto" Padding="5,1" Margin="15,0" VerticalAlignment="Center" IsChecked="False" VerticalContentAlignment="Center" Click="chkPloyline_Checked"/>
+                </StackPanel>
+            </telerik:GroupBox>
+            <telerik:GroupBox Grid.Row="5" Header="Default Zoom Level" Margin="5,3" FontSize="15" Foreground="White" FontFamily="Segoe UI" BorderBrush="White" BorderThickness="1">
+                <StackPanel Orientation="Horizontal" Margin="0,5" VerticalAlignment="Center">
+                    <Label Content="Zoom Level : " Margin="5,0" Foreground="Wheat"/>
+                    <TextBlock x:Name="txtZoomLevel" Text="{Binding ElementName=sliderZoom, Path=Value, StringFormat={}{0}X, UpdateSourceTrigger=PropertyChanged}" Width ="40" Foreground="White" VerticalAlignment="Center"/>
+                    <Slider x:Name="sliderZoom" VerticalAlignment="Center" Width="400" Foreground="AliceBlue" Minimum="0" Maximum="4" 
+                            SmallChange="0.5" TickPlacement="TopLeft" TickFrequency="0.5" IsSnapToTickEnabled="True" Margin="10,0"/>
+                </StackPanel>
+            </telerik:GroupBox>
+            <telerik:GroupBox Grid.Row="6" Header="Enable/Disable Stats" Margin="5,5" FontSize="15" Foreground="White" FontFamily="Segoe UI" BorderBrush="White" BorderThickness="1">
+                <StackPanel Orientation="Horizontal" Margin="0,5">
+                    <CheckBox x:Name="chkValidationStats" Content="Validation Stats" Foreground="Wheat" IsChecked="False" Height="30" Width="auto" Padding="10,0" Margin="15,0" VerticalContentAlignment="Center"/>
+                    <Label Content="Validate along with Class ID Assigner : " Height="30" Foreground="Wheat" VerticalAlignment="Center" Margin="40,0,0,0" Visibility="Collapsed"/>
+                    <ToggleButton x:Name="toggleValidateID" Style="{StaticResource MaterialDesignFlatToggleButton}" Height="15" Width="15" Cursor="Hand" HorizontalAlignment="Center" VerticalContentAlignment="Center"
+                                  IsEnabled="{Binding ElementName=chkValidationStats, Path=IsChecked}" Visibility="Collapsed">
+                        <ToggleButton.Background>
+                            <RadialGradientBrush>
+                                <GradientStop Color="#FF69168C" Offset="0"/>
+                                <GradientStop Color="#FFB33EE5" Offset="1"/>
+                            </RadialGradientBrush>
+                        </ToggleButton.Background>
+                        <materialDesign:PackIcon Kind="CircleOutline" Height="12" Width="12" VerticalAlignment="Center"></materialDesign:PackIcon>
+                    </ToggleButton>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,0">
+                        <Label Content="Default Circle Radius : " Height="30" Foreground="Wheat" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        <TextBox x:Name="txtDefaultRad" HorizontalAlignment="Left" Height="25" Padding="1" VerticalAlignment="Center" Width="75" Foreground="Black"
+                                BorderBrush="Black" Margin="10,0,0,0"  FontSize="14" FontFamily="Segoe UI" PreviewTextInput="NumberValidationTextBox"/>
+                    </StackPanel>
+                </StackPanel>
+            </telerik:GroupBox>
+            <telerik:GroupBox Grid.Row="7" Header="Application Mode" Visibility="Collapsed" Margin="5,5" FontSize="15" Foreground="White" FontFamily="Segoe UI" BorderBrush="White" BorderThickness="1">
+                <materialDesign:ColorZone Mode="Light">
+                    <StackPanel Orientation="Horizontal" Margin="0,5" HorizontalAlignment="Left">
+                        <RadioButton x:Name="radNormal" Style="{StaticResource MaterialDesignTabRadioButton}" Foreground="Wheat" Cursor="Hand" Margin="5" Height="30" Width="auto" IsChecked="True" Content="Normal"/>
+                        <RadioButton x:Name="radTest" Style="{StaticResource MaterialDesignTabRadioButton}" Foreground="Wheat" Cursor="Hand" Margin="50,0,0,0" Height="30" Width="auto" IsChecked="False" Content="Test"/>
+                    </StackPanel>
+                </materialDesign:ColorZone>                
+            </telerik:GroupBox>
+            <StackPanel Grid.Row="8" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,5">
+                <telerik:RadButton x:Name="btnOk" CornerRadius="10" Content="OK" HorizontalAlignment="Right" BorderBrush="Black" Background="#FFE7E7E0" Foreground="Brown" FontSize="15" VerticalContentAlignment="Center" Width="auto" Height="23" Padding="15,0" ToolTip="Save Settings and Close" Click="btnOk_Click" Margin="10,0,0,0"/>
+                <telerik:RadButton x:Name="btnCancel" CornerRadius="10" Content="Cancel" HorizontalAlignment="Right" BorderBrush="Black" Background="#FFE7E7E0" Foreground="Brown"  FontSize="15" VerticalContentAlignment="Center" Width="auto" Height="23" Padding="20,0" ToolTip="Cancel and Close" Click="btnCancel_Click" Margin="10,0,20,0"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

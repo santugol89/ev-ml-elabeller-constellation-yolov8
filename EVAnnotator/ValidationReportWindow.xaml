@@ -1,0 +1,147 @@
+﻿<Window x:Class="GenieSupervisor.ValidationReportWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:GenieSupervisor"
+        xmlns:telerik="http://schemas.telerik.com/2008/xaml/presentation"        
+        mc:Ignorable="d"
+        TextElement.FontWeight="Regular"
+        TextElement.FontSize="14"
+        TextElement.FontFamily="Segoe UI"
+        Left="200" Top="100" WindowStyle="None" BorderThickness="1" MinWidth="500" Width="auto" Height="auto" BorderBrush="Black"
+        WindowStartupLocation="Manual" ResizeMode="NoResize" ShowInTaskbar="False" MinHeight="400">
+    <Grid Background="#FF686262">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="30"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <StackPanel Orientation="Horizontal" Grid.Row="0" VerticalAlignment="Center" HorizontalAlignment="Stretch" Height="30">
+            <Label Content="CSV Validation Report"  HorizontalAlignment="Left" FontSize="15" Foreground="White" FontStyle="Italic" Margin="10,0,0,0"/>
+        </StackPanel>
+
+        <Border Cursor="Hand" Height="30" Width="30" Visibility="Collapsed" CornerRadius="50" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="2,0,30,0">
+            <Border.Background>
+                <RadialGradientBrush>
+                    <GradientStop Color="#FF686262" Offset="0.968"/>
+                    <GradientStop Color="Red"/>
+                </RadialGradientBrush>
+            </Border.Background>
+            <TextBlock TextWrapping="Wrap" Height="30" Width="50" FontSize="18" TextAlignment="Center" Foreground="White" FontWeight="ExtraBold" VerticalAlignment="Center" ToolTip="Minimize" HorizontalAlignment="Center" Text="-" PreviewMouseLeftButtonDown="ButtonMinimize_Click"></TextBlock>
+        </Border>
+        <Border Cursor="Hand" Height="30" Width="30" CornerRadius="50" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="2,0">
+            <Border.Background>
+                <RadialGradientBrush>
+                    <GradientStop Color="#FF686262" Offset="0.968"/>
+                    <GradientStop Color="Red"/>
+                </RadialGradientBrush>
+            </Border.Background>
+            <TextBlock TextWrapping="Wrap" Height="30" Width="30" FontSize="18" TextAlignment="Center" Foreground="White" FontWeight="Bold" VerticalAlignment="Center" ToolTip="Exit" HorizontalAlignment="Center" Text="x" PreviewMouseLeftButtonDown="ButtonSaveClose_Click"/>
+        </Border>
+        <Grid Grid.Row="1" Background="#FF4C3F3F">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="50"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="40"/>
+            </Grid.RowDefinitions>
+            <Border Grid.Row="0" BorderThickness="0.5" BorderBrush="White" Margin="2,2,2,5">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left" Height="30">
+                    <Label Content="Select Columns : "  HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="14" Foreground="White" FontWeight="SemiBold" Margin="10,0,0,0"/>
+                    <WrapPanel x:Name="panelChkBox" VerticalAlignment="Center">
+                        <CheckBox x:Name="chkFilename" Content="Filename" Height="auto" Width="auto" Margin="15,0" Foreground="Wheat" VerticalContentAlignment="Center" VerticalAlignment="Center"/>
+                        <CheckBox x:Name="chkRegionCount" Content="Region Count" Height="auto" Width="auto" Margin="15,0" Foreground="Wheat" VerticalContentAlignment="Center" VerticalAlignment="Center"/>
+                        <CheckBox x:Name="chkShapeAttribute" Content="Region Shape Attributes" Height="auto" Width="auto" Margin="15,0" Foreground="Wheat" VerticalContentAlignment="Center" VerticalAlignment="Center"/>
+                        <CheckBox x:Name="chkClassAttribute" Content="Region Attribute" Height="auto" IsEnabled="False" Width="auto" Margin="15,0" Foreground="Wheat" VerticalContentAlignment="Center" VerticalAlignment="Center"/>
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <telerik:GroupBox x:Name="grpReport" Margin="2,0" Grid.Row="1" Header="Validation Report" Foreground="White" BorderBrush="White" BorderThickness="0.5" FontSize="12">
+                <DataGrid x:Name="dgDatasheet" Margin="0" HorizontalContentAlignment="Center" RowHeight="25" RowHeaderWidth="0" Foreground="White" Background="#FF5A5555" IsReadOnly="True" AutoGenerateColumns="True" GridLinesVisibility="Horizontal">
+                    <DataGrid.ColumnHeaderStyle>
+                        <Style TargetType="{x:Type DataGridColumnHeader}">
+                            <Setter Property="Foreground" Value="Black"/>
+                            <Setter Property="FontWeight" Value="Bold"/>
+                            <Setter Property="FontSize" Value="14"/>
+                            <Setter Property="Background" Value="#FF948F88"/>
+                            <Setter Property="Height" Value="auto"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+                            <Setter Property="VerticalContentAlignment" Value="Center"/>
+                            <Setter Property="BorderThickness" Value="0,0,0,0.5"/>
+                            <Setter Property="BorderBrush" Value="White"/>
+                            <Setter Property="ContentTemplate">
+                                <Setter.Value>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" 
+                               TextWrapping="Wrap" 
+                               TextAlignment="Center" 
+                               VerticalAlignment="Center" 
+                               HorizontalAlignment="Center"/>
+                                    </DataTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </DataGrid.ColumnHeaderStyle>
+
+                    <DataGrid.ItemContainerStyle>
+                        <Style TargetType="DataGridRow">
+                            <Setter Property="Background" Value="Transparent" />
+                            <Setter Property="Foreground" Value="Wheat" />
+
+                            <Style.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="Gray"/>
+                                </Trigger>
+                                <Trigger Property="IsSelected" Value="True" >
+                                    <Setter Property="Background" Value="#4F808080" />
+                                    <Setter Property="Foreground" Value="Black"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.ItemContainerStyle>
+   
+                    <DataGrid.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="BorderThickness" Value="0,0,0,0.5"/>
+                            <Setter Property="BorderBrush" Value="White"/>
+                            
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="DataGridCell">
+                                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>                            
+                        </Style>
+                    </DataGrid.CellStyle>
+                </DataGrid>
+            </telerik:GroupBox>
+            <!--<Popup x:Name="popUpProject" IsOpen="False" Placement="Center" PlacementTarget="{Binding ElementName=grpReport}" AllowsTransparency="True">
+                <Border BorderThickness="1" BorderBrush="Black" Height="50" Width="400" HorizontalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Background="Transparent">
+                        <Label Content="Select Project" Width="auto" Height="25" FontSize="15" Margin="20,0,0,0" Padding="10,0" VerticalAlignment="Center"/>
+                        <ComboBox x:Name="cmbProject" Height="25" Width="100" FontSize="15">
+                            <ComboBoxItem>LS3 BV</ComboBoxItem>
+                            <ComboBoxItem>LS3 LPC</ComboBoxItem>
+                        </ComboBox>
+                        <Button x:Name="btnPopupOk" Content="OK" Height="25" Padding="10,0" Margin="25,0" FontSize="15" PreviewMouseLeftButtonDown="btnPopupOk_PreviewKeyDown" />
+                        <Button x:Name="btnPopupCancel" Content="Cancel" Height="25" Padding="10,0" Margin="0,0" FontSize="15" PreviewMouseLeftButtonDown="btnPopupCancel_PreviewKeyDown" />
+                    </StackPanel>
+                </Border>
+            </Popup>-->
+            <Popup x:Name="popUpWait" IsOpen="False" Placement="Center" PlacementTarget="{Binding ElementName=grpReport}" AllowsTransparency="True">
+                <Border BorderThickness="1" Background="#FFCCCD98" BorderBrush="Black" Height="auto" Width="auto" HorizontalAlignment="Center">
+                    <Label Content="Processing.. Please wait.." Width="auto" Height="auto" FontStretch="ExtraExpanded" FontWeight="Normal" FontSize="15" Padding="15,5" VerticalAlignment="Center"/>
+                </Border>
+            </Popup>
+            <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Right" Height="30" Margin="0,0,35,5">
+                <telerik:RadButton x:Name="btnValidate" CornerRadius="10" Content="Validate" HorizontalAlignment="Center" BorderBrush="Black" Background="#FFE7E7E0" Foreground="Brown" FontSize="15" VerticalContentAlignment="Center" Width="auto" 
+                        telerik:StyleManager.Theme="Expression_Dark" Height="25" Padding="15,0" ToolTip="Click to Validate CSV File" Click="btnValidate_Click" Margin="10,0,0,2.4" VerticalAlignment="Bottom"/>
+                <telerik:RadButton x:Name="btnPdfExport" CornerRadius="10" Content="Export as PDF" HorizontalAlignment="Center" BorderBrush="Black" Background="#FFE7E7E0" Foreground="Brown" FontSize="15" VerticalContentAlignment="Center" Width="auto" 
+                        telerik:StyleManager.Theme="Expression_Dark" Height="25" Padding="15,0" ToolTip="Click to Export as PDF" Click="btnPdfExport_Click" Margin="20,0,0,0"/>
+                <telerik:RadButton x:Name="btnExit" CornerRadius="10" Content="OK" HorizontalAlignment="Center" BorderBrush="Black" Background="#FFE7E7E0" Foreground="Brown" FontSize="15" VerticalContentAlignment="Center" Width="auto" 
+                        telerik:StyleManager.Theme="Expression_Dark" Height="25" Padding="20,0" ToolTip="Close" PreviewMouseLeftButtonDown="ButtonSaveClose_Click" Margin="20,0,0,0"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
