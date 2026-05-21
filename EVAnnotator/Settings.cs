@@ -1,4 +1,6 @@
-﻿using MoreLinq;
+﻿using IniParser;
+using IniParser.Model;
+using MoreLinq;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -58,6 +60,7 @@ namespace GenieSupervisor
         public EnumClassType ClassType;
         public string Architecture;
         public string Station;
+        public string PatchcoreIlluminationType;
 
         public string StatsFilePath;
         public bool blnValidationStat;
@@ -74,8 +77,14 @@ namespace GenieSupervisor
         public string trainFolder = "train";
         public string testsetFolder = "test";
         public string sourceFolder = "source";
-        public string[] ListArchitectures = new string[2];
+        public List<string> ListArchitectures = new List<string>();
         public int DefaultRadius = 19;
+        public List<string> ListIlluminations = new List<string>();
+
+        public string ClassificationAlias { get; set; } = "Classification";
+        public string DetectionAlias { get; set; } = "Object Detection";
+        public string SegmentationAlias { get; set; } = "SegmentationV8";
+        public string PatchcoreAlias { get; set; } = "Anomaly Detection";
 
         public Settings(MainWindow app)
         {
@@ -103,7 +112,8 @@ namespace GenieSupervisor
                 }
 
                 CheckandLoadNewClassFile();
-                IniFile iniRead = new IniFile(StatsFilePath + @"Preferences.ini");
+                string strIniFile = Path.Combine(StatsFilePath + @"Preferences.ini");
+                IniFile iniRead = new IniFile(strIniFile);
                 LoadImagePath = iniRead.ReadValue("Settings", "LoadImagePath", "");
                 LoadCSVImportPath = iniRead.ReadValue("Settings", "LoadCSVFileImport", "");
                 ClassFilePath = iniRead.ReadValue("Settings", "ClassFilePath", "");
@@ -133,11 +143,37 @@ namespace GenieSupervisor
                 CurrentAugmentConfig.Trans_Coordinate[1] = iniRead.ReadValue("AugmentConfig", "Trans_Y", 10);
                 CurrentAugmentConfig.BlurRatio = iniRead.ReadValue("AugmentConfig", "BlurRatio", 1.5);
 
-                //ListArchitectures[0] = iniRead.ReadValue("Architecture", "A0", "Classification");
-                //ListArchitectures[1] = iniRead.ReadValue("Architecture", "A1", "Detection");
-                ListArchitectures[0] = iniRead.ReadValue("Architecture", "A0", "YoloV8");
-                ListArchitectures[1] = iniRead.ReadValue("Architecture", "A1", "SegmentationV8");
+                var parser = new FileIniDataParser();
+                IniData data = null;
+                if (File.Exists(strIniFile))
+                    data = parser.ReadFile(strIniFile);
 
+                if (data != null && data.Sections.ContainsSection("Architecture"))
+                {
+                    var dictTempInfo = data["Architecture"].ToDictionary(key => key.KeyName, value => value.Value);
+                    foreach (KeyValuePair<string, string> keyValuePair in dictTempInfo)
+                        ListArchitectures.Add(keyValuePair.Value);
+                }
+                if (ListArchitectures.Count == 0)
+                {
+                    ListArchitectures.Add(DetectionAlias);
+                    ListArchitectures.Add(PatchcoreAlias);
+                }
+
+                if (data != null && data.Sections.ContainsSection("IlluminationTypes"))
+                {
+                    var dictTempInfo = data["IlluminationTypes"].ToDictionary(key => key.KeyName, value => value.Value);
+                    foreach (KeyValuePair<string, string> keyValuePair in dictTempInfo)
+                        ListIlluminations.Add(keyValuePair.Value);
+                }
+
+                if(ListIlluminations.Count == 0)
+                {
+                    ListIlluminations.Add("TopMono");
+                    ListIlluminations.Add("TopColor");
+                    ListIlluminations.Add("SideTB");
+                    ListIlluminations.Add("SideLR");
+                }
                 app.ValidationStatVisibility = blnValidationStat ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
                 ReadClassFileConfig();
                 Utilities.LogMessage("ReadConfiguration in settings loaded", 0);
@@ -266,6 +302,7 @@ namespace GenieSupervisor
                 ClassType = (EnumClassType)Enum.Parse(typeof(EnumClassType), strTemp, true);
                 Architecture = iniRead1.ReadValue("ClassInfo", "Architecture ", "");
                 Station = iniRead1.ReadValue("ClassInfo", "Station ", "");
+                PatchcoreIlluminationType = iniRead1.ReadValue("ClassInfo", "IlluminationType", "");
 
                 string strClassName;
                 dictEVSupervisorClass = new Dictionary<int, string>();
@@ -355,10 +392,11 @@ namespace GenieSupervisor
             iniWrite.WriteValue("AugmentConfig", "Trans_Y", CurrentAugmentConfig.Trans_Coordinate[1]);
             iniWrite.WriteValue("AugmentConfig", "BlurRatio", CurrentAugmentConfig.BlurRatio);
 
-            //iniWrite.WriteValue("Architecture", "A0", "Classification");
-            //iniWrite.WriteValue("Architecture", "A1", "Detection");
-            iniWrite.WriteValue("Architecture", "A0", "YoloV8");
-            iniWrite.WriteValue("Architecture", "A1", "SegmentationV8");
+            for(int i = 0; i < ListArchitectures.Count; i++)
+                iniWrite.WriteValue("Architecture", String.Format("A{0}", i), ListArchitectures[i]);
+
+            for(int i = 0; i < ListIlluminations.Count; i++)
+                iniWrite.WriteValue("IlluminationTypes", String.Format("{0}", i), ListIlluminations[i]);
         }
 
         public bool CheckFileAccess(string strFileFullPath)

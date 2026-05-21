@@ -62,6 +62,9 @@ namespace GenieSupervisor
             radRecta.IsChecked = false;
             radPoly.IsChecked = false;
             radSegregation.IsChecked = false;
+            gridIllumination.Visibility = Visibility.Collapsed;
+            cmbIlluminations.ItemsSource = app.settings.ListIlluminations;
+            cmbIlluminations.SelectedIndex = 0;
 
             cmbProject.Items.Clear();
             List<int> listProjectKey = app.settings.dictProjectList.Keys.Select(item => Convert.ToInt32(item.Replace("P", ""))).OrderBy(x => x).ToList();
@@ -77,16 +80,17 @@ namespace GenieSupervisor
             if (ManageType == "New")
             {
                 AddProject.Visibility = Visibility.Visible;
-                lblHeader.Content = "Add Project";
+                lblHeader.Text = "Add Project";
                 btnGenerate.Content = "Generate";
                 btnGenerate.ToolTip = "Generate Project and Close";
                 lblProject.Content = "Project Name : ";
                 btnDelete.Visibility = Visibility.Collapsed;
                 cmbArchitecture.ItemsSource = app.settings.ListArchitectures;
                 cmbArchitecture.SelectedIndex = 0;
-                radSegregation.IsChecked = cmbArchitecture.SelectedItem.ToString().Contains("Classification")? true : false;
-                radRecta.IsChecked = cmbArchitecture.SelectedItem.ToString().Contains("YoloV8") ? true : false;
-                radPoly.IsChecked = cmbArchitecture.SelectedItem.ToString().Contains("SegmentationV8") ? true : false;
+                radSegregation.IsChecked = cmbArchitecture.SelectedItem.ToString().Contains(app.settings.ClassificationAlias) ||
+                                cmbArchitecture.SelectedItem.ToString().Contains(app.settings.PatchcoreAlias) ? true : false;
+                radRecta.IsChecked = cmbArchitecture.SelectedItem.ToString().Contains(app.settings.DetectionAlias) ? true : false;
+                radPoly.IsChecked = cmbArchitecture.SelectedItem.ToString().Contains(app.settings.SegmentationAlias) ? true : false;
                 SetControls(true);
                 cmbProject.IsEnabled = true;
             }
@@ -95,7 +99,7 @@ namespace GenieSupervisor
                 AddProject.Visibility = Visibility.Collapsed;
                 cmbArchitecture.ItemsSource = null;
                 SetControls(false); 
-                lblHeader.Content = "Edit Project";
+                lblHeader.Text = "Edit Project";
                 
                 btnGenerate.Content = "Modify";
                 btnGenerate.ToolTip = "Click to modify project";
@@ -114,6 +118,7 @@ namespace GenieSupervisor
             //spType.IsEnabled = ManageType == "Update" && ProjectKey =="P1"? false : bIsEnable;
             spClass.IsEnabled = bIsEnable;
             radAny.IsEnabled = bIsEnable;
+            cmbIlluminations.IsEnabled = bIsEnable;
             SetListBoxProperty(bIsEnable);
         }
 
@@ -370,6 +375,13 @@ namespace GenieSupervisor
                 return false;
             }
 
+            if(!cmbArchitecture.SelectedItem.ToString().Contains(app.settings.PatchcoreAlias) && cmbIlluminations.SelectedItem == null)
+            {
+                MessageBox.Show("Please select Illumination Type for project..!", "Select", MessageBoxButton.OK, MessageBoxImage.Error);
+                cmbIlluminations.Focus();
+                return false;
+            }
+
             if(app.settings.dictProjectList.Values.Contains(cmbProject.SelectedItem.ToString(), StringComparer.CurrentCultureIgnoreCase))
             {
                 if(ManageType == "Update" && cmbArchitecture.Text == Architecture)
@@ -422,9 +434,12 @@ namespace GenieSupervisor
                     iniWrite.WriteValue("ClassInfo", "Classes", ListProjectClass.Count.ToString());
                     iniWrite.WriteValue("ClassInfo", "Lines", txtTotalLines.Text.ToString());
 
+                    if (cmbArchitecture.SelectedItem.ToString().Contains(app.settings.PatchcoreAlias))
+                        iniWrite.WriteValue("ClassInfo", "IlluminationType", cmbIlluminations.SelectedItem.ToString());
+
                     string type = radRecta.IsChecked.Value ? "Rectangle" : radPoly.IsChecked.Value ? "Polyline" : radSegregation.IsChecked.Value ? "Segregation" : "Any";
                     iniWrite.WriteValue("Annotation", "Type", type);
-
+                    
                     foreach (ImageClass curClass in ListProjectClass)
                         iniWrite.WriteValue("Class", "C" + curClass.ClassIndex, curClass.ClassName + "(" + curClass.ClassAlias + ")");
 
@@ -469,6 +484,9 @@ namespace GenieSupervisor
                     iniWrite.WriteValue("ClassInfo", "Architecture", cmbArchitecture.Text.ToString());
                     iniWrite.WriteValue("ClassInfo", "Classes", ListProjectClass.Count.ToString());
                     iniWrite.WriteValue("ClassInfo", "Lines", txtTotalLines.Text.ToString());
+
+                    if (cmbArchitecture.SelectedItem.ToString().Contains(app.settings.PatchcoreAlias))
+                        iniWrite.WriteValue("ClassInfo", "IlluminationType", cmbIlluminations.SelectedItem.ToString());
 
                     string type = radRecta.IsChecked.Value ? "Rectangle" : radPoly.IsChecked.Value ? "Polyline" : radSegregation.IsChecked.Value ? "Segregation" : "Any";
                     iniWrite.WriteValue("Annotation", "Type", type);
@@ -519,7 +537,7 @@ namespace GenieSupervisor
             string strTestSetPath = app.ConfigFilePath + @"Admin\" + strProjectname + @"\" + strArchitecture + @"\" + app.settings.testsetFolder;
             string strCSVExportPath = app.ConfigFilePath + @"Admin\" + strProjectname + @"\" + strArchitecture + @"\" + app.settings.CSVExportFolder;
 
-            if (!Directory.Exists(strValDataSetPath))
+            if (!strArchitecture.Contains(app.settings.PatchcoreAlias) && !Directory.Exists(strValDataSetPath))
                 Directory.CreateDirectory(strValDataSetPath);
 
             if (!Directory.Exists(strTrainDataSetPath))
@@ -714,14 +732,18 @@ namespace GenieSupervisor
         {
             if (cmbArchitecture.SelectedIndex != -1)
             {
-                if (cmbArchitecture.SelectedItem.ToString().Contains("YoloV8"))
+                if (cmbArchitecture.SelectedItem.ToString().Contains(app.settings.DetectionAlias))
                     radRecta.IsChecked = true;
-                else if (cmbArchitecture.SelectedItem.ToString().Contains("SegmentationV8"))
+                else if (cmbArchitecture.SelectedItem.ToString().Contains(app.settings.SegmentationAlias))
                     radPoly.IsChecked = true;
                 else
                     radSegregation.IsChecked = true;
-            }
 
+                if (cmbArchitecture.SelectedItem.ToString().Contains(app.settings.PatchcoreAlias))
+                    gridIllumination.Visibility = Visibility.Visible;
+                else
+                    gridIllumination.Visibility = Visibility.Collapsed;
+            }
 
             if ((ManageType == "Edit" && cmbProject.SelectedIndex == -1) || cmbArchitecture.SelectedIndex == -1)
                 return;
@@ -750,6 +772,12 @@ namespace GenieSupervisor
                     radSegregation.IsChecked = true;
                 else
                     radAny.IsChecked = true;
+
+                string strIllumination = iniRead.ReadValue("ClassInfo", "IlluminationType", "");
+                if (strIllumination != "" && app.settings.ListIlluminations.Contains(strIllumination))
+                    cmbIlluminations.SelectedItem = strIllumination;
+                else
+                    cmbIlluminations.SelectedItem = null;
 
                 //radRecta.IsChecked = true;
                 int classCount = Convert.ToInt32(txtTotalClass.Text);

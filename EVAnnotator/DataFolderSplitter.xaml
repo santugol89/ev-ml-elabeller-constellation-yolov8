@@ -9,7 +9,7 @@
         TextElement.FontWeight="Regular"
         TextElement.FontSize="13"
         TextElement.FontFamily="Segoe UI"
-        Left="300" Top="150" WindowStyle="None" BorderThickness="1" MinWidth="350" Width="auto" Height="auto" BorderBrush="Black"
+        Left="300" Top="150" WindowStyle="None" BorderThickness="1" MinWidth="350" Width="auto" MaxWidth="600" Height="auto" BorderBrush="Black"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize" ShowInTaskbar="False" SizeToContent="WidthAndHeight">
     <Grid Background="#FF686262">
         <Grid.RowDefinitions>
@@ -29,7 +29,7 @@
             <TextBlock TextWrapping="Wrap" Height="30" Width="30" FontSize="18" TextAlignment="Center" Foreground="White" FontWeight="Bold" VerticalAlignment="Center" ToolTip="Exit" HorizontalAlignment="Center" Text="x" PreviewMouseLeftButtonDown="btnClose_Click"></TextBlock>
         </Border>
 
-        <Grid Grid.Row="1" Background="#FF4C3F3F">
+        <Grid x:Name="gridMain" Grid.Row="1" Background="#FF4C3F3F">
             <Grid.RowDefinitions>
                 <RowDefinition Height="auto"/>
                 <RowDefinition Height="auto"/>
@@ -56,10 +56,11 @@
 
                 <!--<TextBox x:Name="txtTrain" HorizontalAlignment="Left" Height="25" Padding="0" VerticalAlignment="Center" Width="50" Foreground="Black" 
                          BorderBrush="Black" Margin="0"  FontSize="16" FontFamily="Segoe UI" PreviewTextInput="txtSplit_PreviewTextInput" TextChanged="txtSplit_TextChanged"/>-->
-
-                <Label Content="Validation % " Margin="20,0,0,0" VerticalAlignment="Center" FontSize="14" Width="90" Foreground="White"/>
-                <TextBox x:Name="txtVal" IsEnabled="False" HorizontalAlignment="Left" Height="auto" Padding="0" VerticalAlignment="Center" Width="50" Foreground="Black" FontWeight="SemiBold"
-                         BorderBrush="Black" Margin="0"  FontSize="16" FontFamily="Segoe UI"/>
+                <StackPanel x:Name="spVal" Orientation="Horizontal">
+                    <Label Content="Validation % " Margin="20,0,0,0" VerticalAlignment="Center" FontSize="14" Width="90" Foreground="White"/>
+                    <TextBox x:Name="txtVal" IsEnabled="False" HorizontalAlignment="Left" Height="auto" Padding="0" VerticalAlignment="Center" Width="50" Foreground="Black" FontWeight="SemiBold"
+                                BorderBrush="Black" Margin="0"  FontSize="16" FontFamily="Segoe UI"/>
+                </StackPanel>
 
                 <!--<TextBox x:Name="txtVal" IsEnabled="True" HorizontalAlignment="Left" Height="25" Padding="0" VerticalAlignment="Center" Width="50"
                          Foreground="Black" BorderBrush="Black" Margin="0"  FontSize="16" FontFamily="Segoe UI" PreviewTextInput="txtSplit_PreviewTextInput"/>-->
@@ -87,13 +88,173 @@
                          Margin="0"  FontSize="16" FontFamily="Segoe UI"/>
             </StackPanel>
 
-            <CheckBox x:Name="chkCopySource" Grid.Row="4" Content="Copy loaded images to Source folder" Visibility="Visible" Foreground="Wheat" VerticalAlignment="Center" IsChecked="True" FontSize="15" Height="30" Width="auto" Padding="10,0,0,3" Margin="15,10,15,0" VerticalContentAlignment="Center"/>
+            <CheckBox x:Name="chkCopySource" Grid.Row="4" Content="Copy loaded images to Source folder" Visibility="Visible" Foreground="Wheat" VerticalAlignment="Center" IsChecked="False" FontSize="15" Height="30" Width="auto" Padding="10,0,0,3" Margin="15,10,15,0" VerticalContentAlignment="Center"/>
 
             <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,20">
                 <telerik:RadButton x:Name="btnProceed" Content="Proceed" CornerRadius="10" BorderBrush="Black" Background="#FFB7CBDD" Foreground="Brown" FontSize="16" HorizontalAlignment="Left" VerticalContentAlignment="Center" Width="auto" 
                         telerik:StyleManager.Theme="Expression_Dark" Height="auto" Padding="15,5" ToolTip="Proceed For Folder Split" Click="btnProceed_Click" Margin="0,0,10,0"/>
             </StackPanel>
 
+        </Grid>
+
+        <!-- PatchCore Architecture Grid -->
+        <Grid x:Name="gridPatchcore" Grid.Row="1" Background="#FF4C3F3F" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Class Summary DataGrid -->
+            <StackPanel Grid.Row="0" Orientation="Vertical" Margin="10,10,10,5">
+                <Label Content="Class Stats" Foreground="Wheat" FontSize="14" FontWeight="SemiBold" Padding="0,0,0,3"/>
+                <DataGrid x:Name="dgPatchcoreClasses"
+                          AutoGenerateColumns="False"
+                          IsReadOnly="True"
+                          CanUserAddRows="False"
+                          CanUserDeleteRows="False"
+                          CanUserResizeRows="False"
+                          HeadersVisibility="Column"
+                          GridLinesVisibility="All"
+                          SelectionMode="Single"
+                          RowBackground="#FF3A3030"
+                          AlternatingRowBackground="#FF2E2525"
+                          Foreground="WhiteSmoke"
+                          FontSize="13"
+                          MinWidth="360"
+                          MaxHeight="180"
+                          BorderBrush="#FF888888"
+                          BorderThickness="1"
+                          HorizontalScrollBarVisibility="Auto"
+                          VerticalScrollBarVisibility="Auto">
+                    <DataGrid.ColumnHeaderStyle>
+                        <Style TargetType="DataGridColumnHeader">
+                            <Setter Property="Background" Value="#FF5A4F4F"/>
+                            <Setter Property="Foreground" Value="LightGoldenrodYellow"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="Padding" Value="8,4"/>
+                            <Setter Property="BorderBrush" Value="#FF888888"/>
+                            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                        </Style>
+                    </DataGrid.ColumnHeaderStyle>
+                    <DataGrid.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Setter Property="Padding" Value="6,3"/>
+                            <Setter Property="BorderBrush" Value="#FF555555"/>
+                            <Setter Property="Foreground" Value="WhiteSmoke"/>
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="#FF7B6A6A"/>
+                                    <Setter Property="Foreground" Value="White"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.CellStyle>
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Class Name" Binding="{Binding ClassName}" Width="*" MinWidth="130"/>
+                        <DataGridTextColumn Header="Type" Binding="{Binding ClassType}" Width="80">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ClassType}" Value="Defect">
+                                            <Setter Property="Foreground" Value="#FFFF8080"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding ClassType}" Value="Good">
+                                            <Setter Property="Foreground" Value="#FF90EE90"/>
+                                            <Setter Property="FontWeight" Value="SemiBold"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                        <DataGridTextColumn Header="Image Count" Binding="{Binding ImageCount}" Width="100">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    <Setter Property="Foreground" Value="LightGoldenrodYellow"/>
+                                    <Setter Property="FontWeight" Value="SemiBold"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </StackPanel>
+
+            <!-- Info Label -->
+            <Border Grid.Row="1" Background="#FF3A2E2E" BorderBrush="#FFAA8844" BorderThickness="1"
+                    CornerRadius="4" Margin="10,5,10,5" Padding="10,8">
+                <TextBlock x:Name="lblPatchcoreSplitInfo"
+                           TextWrapping="Wrap"
+                           Foreground="#FFFFDD99"
+                           FontSize="12"
+                           LineHeight="18"
+                           Text="ℹ  Defect images will move to Test folder.  Good images will move 95% to Train folder and 5% to Test folder."/>
+            </Border>
+
+            <!-- Slider for Good Images Train % -->
+            <StackPanel Grid.Row="2" Orientation="Vertical" Margin="10,5,10,5">
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                    <Label Content="Train/Test Split for Good Images :" Foreground="White" FontSize="13" Padding="0" VerticalAlignment="Center"/>
+                    <Label x:Name="lblGoodTrainPct" Content="95%" Foreground="LightGoldenrodYellow" FontSize="13" FontWeight="SemiBold" Padding="6,0,0,0" VerticalAlignment="Center"/>
+                    <Label Content="Train" Foreground="#FF90EE90" FontSize="11" Padding="10,0,4,0" VerticalAlignment="Center"/>
+                    <Label Content="/" Foreground="White" FontSize="11" Padding="0" VerticalAlignment="Center"/>
+                    <Label x:Name="lblGoodTestPct" Content="5% Test" Foreground="#FFFF8080" FontSize="11" Padding="4,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Label Grid.Column="0" Content="0%" Foreground="#FF999999" FontSize="11" Padding="0,0,6,0" VerticalAlignment="Center"/>
+                    <Slider x:Name="sldrGoodTrainSplit"
+                            Grid.Column="1" Width="500"
+                            Minimum="0" Maximum="100" Value="95"
+                            TickFrequency="5"
+                            IsSnapToTickEnabled="True"
+                            TickPlacement="BottomRight"
+                            SmallChange="1" LargeChange="5"
+                            VerticalAlignment="Center"
+                            ValueChanged="sldrGoodTrainSplit_ValueChanged">
+                        <Slider.Style>
+                            <Style TargetType="Slider">
+                                <Setter Property="Foreground" Value="#FFB7CBDD"/>
+                            </Style>
+                        </Slider.Style>
+                    </Slider>
+                    <Label Grid.Column="2" Content="100%" Foreground="#FF999999" FontSize="11" Padding="6,0,0,0" VerticalAlignment="Center"/>
+                </Grid>
+            </StackPanel>
+
+            <!-- Totals summary row -->
+            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="10,2,10,8" HorizontalAlignment="Left">
+                <Label Content="Train :" Foreground="White" FontSize="12" Padding="0,0,4,0" VerticalAlignment="Center"/>
+                <Label x:Name="lblPCTrainCount" Content="—" Foreground="#FF90EE90" FontSize="12" FontWeight="SemiBold" Padding="0,0,12,0" VerticalAlignment="Center"/>
+                <Label Content="Test :" Foreground="White" FontSize="12" Padding="0,0,4,0" VerticalAlignment="Center"/>
+                <Label x:Name="lblPCTestCount" Content="—" Foreground="#FFFF8080" FontSize="12" FontWeight="SemiBold" Padding="0" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Proceed Button -->
+            <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,20">
+                <telerik:RadButton x:Name="btnPatchcoreProceed"
+                                   Content="Proceed"
+                                   CornerRadius="10"
+                                   BorderBrush="Black"
+                                   Background="#FFB7CBDD"
+                                   Foreground="Brown"
+                                   FontSize="16"
+                                   HorizontalAlignment="Left"
+                                   VerticalContentAlignment="Center"
+                                   Width="auto"
+                                   telerik:StyleManager.Theme="Expression_Dark"
+                                   Height="auto"
+                                   Padding="15,5"
+                                   ToolTip="Proceed with folder split"
+                                   Click="btnPatchcoreProceed_Click"/>
+            </StackPanel>
         </Grid>
     </Grid>
 </Window>

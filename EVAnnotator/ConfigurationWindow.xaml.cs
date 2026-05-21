@@ -398,6 +398,13 @@ namespace GenieSupervisor
                 strShape = strShape.Split('/').Length > 0 ? strShape.Split('/')[0] : strShape;
                 SelectedClassType = (EnumClassType)Enum.Parse(typeof(EnumClassType), strShape, true);
             }
+
+            if(strClassPath != string.Empty)
+            {
+                IniFile inifile = new IniFile(strClassPath);
+                string illuminationType = inifile.ReadValue("ClassInfo", "IlluminationType", "");
+                app.settings.PatchcoreIlluminationType = illuminationType;
+            }
         }
 
         private string GetClassPathfromName(string strProjectName)
@@ -510,13 +517,14 @@ namespace GenieSupervisor
                 return;
 
             Architecture = cmbArchitecture.SelectedItem.ToString();
-            if (cmbArchitecture.SelectedItem.ToString().Contains("Classification"))
+            if (cmbArchitecture.SelectedItem.ToString().Contains(app.settings.ClassificationAlias) 
+                || cmbArchitecture.SelectedItem.ToString().Contains(app.settings.PatchcoreAlias))
             {
                 radSegregation.IsChecked = true;
                 radClassType_Checked(radSegregation, null);                
                 
             }
-            else if (cmbArchitecture.SelectedItem.ToString().Contains("Segmentation"))
+            else if (cmbArchitecture.SelectedItem.ToString().Contains(app.settings.SegmentationAlias))
             {
                 radPoly.IsChecked = true;
                 radClassType_Checked(radPoly, null);

@@ -24,6 +24,7 @@ using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Collections;
 using GenieSupervisor.Data_Augmentation;
+using Microsoft.WindowsAPICodePack.Dialogs;
 
 namespace GenieSupervisor
 {
@@ -1640,14 +1641,19 @@ namespace GenieSupervisor
             if (ShowMessageNoProject(sender))
                 return;
 
-            FolderBrowserDialog folderDialog = new FolderBrowserDialog();
-            folderDialog.SelectedPath = settings.DefaultImageLoadPath;
-            DialogResult result = folderDialog.ShowDialog();
-            if (result == System.Windows.Forms.DialogResult.OK)
+            var folderDialog = new CommonOpenFileDialog()
+            {
+                IsFolderPicker = true,
+                Title = "Select Folder",
+                EnsurePathExists = true
+            };
+
+            CommonFileDialogResult result = folderDialog.ShowDialog();
+            if (result == CommonFileDialogResult.Ok)
             {
                 ResetWindow();
-                settings.LoadImagePath = folderDialog.SelectedPath;
-                settings.DefaultImageLoadPath = folderDialog.SelectedPath;
+                settings.LoadImagePath = folderDialog.FileName;
+                settings.DefaultImageLoadPath = folderDialog.FileName;
                 labelEvent.Reset();                                             //Stop the CheckLabelling thread
                 SaveEvent.Reset();                                              //Stop the AutoSaveWork thread
                 this.Dispatcher.Invoke((() =>
@@ -1681,7 +1687,7 @@ namespace GenieSupervisor
                 threadCheckLabelling.Start();
                 threadCheckLabelling.Priority = ThreadPriority.Lowest;
                 settings.CSVExportPath = settings.LoadImagePath;
-                settings.LoadCSVImportPath = folderDialog.SelectedPath;
+                settings.LoadCSVImportPath = folderDialog.FileName;
             }
         }
 
@@ -2944,9 +2950,10 @@ namespace GenieSupervisor
             if (ShowMessageNoProject(sender))
                 return;
 
+            string strMsg = settings.Architecture.Contains(settings.PatchcoreAlias) ? "Train/Test" : "Train/Val/Test";
             if (ImageMenuList == null || ImageMenuList.Count == 0)
             {
-                System.Windows.MessageBox.Show("Please load labelled/segregated Images to Split Train/Val/Test set..!", "No Images Found", MessageBoxButton.OK, MessageBoxImage.Warning,
+                System.Windows.MessageBox.Show("Please load labelled/segregated Images to Split " + strMsg + " set..!", "No Images Found", MessageBoxButton.OK, MessageBoxImage.Warning,
                     MessageBoxResult.None);
                 return;
             }
@@ -2957,7 +2964,7 @@ namespace GenieSupervisor
             }
             if(TotalCorrectionImages > 0)
             {
-                MessageBoxResult result = System.Windows.MessageBox.Show(TotalCorrectionImages + " Correction Images found in loaded dataset. Do you want to continue without correction image added in train/val/test dataset?" +
+                MessageBoxResult result = System.Windows.MessageBox.Show(TotalCorrectionImages + " Correction Images found in loaded dataset. Do you want to continue without correction image added in " + strMsg + " dataset ?" +
                     "\nClick on \"Yes\" to continue and \"No\" to cancel this and go for Image correction.", "Confirm", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.Yes);
                 if (result == MessageBoxResult.No)
                     return;

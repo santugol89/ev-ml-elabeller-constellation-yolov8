@@ -578,96 +578,7 @@ namespace GenieSupervisor
         /// Function to Set controls of application to Normal mode/test mode
         /// </summary>
         public void SetApplicationMenuControls()
-        {            
-            //if (settings.ApplicationMode == "Normal" && settings.ClassType != EnumClassType.Segregation)
-            //{
-            //    rbgJson.Visibility = Visibility.Visible;
-            //    rbgXML.Visibility = Visibility.Visible;
-            //    rbgROI.Visibility = Visibility.Visible;
-            //    rbgHistory.Visibility = Visibility.Visible;
-            //    DuplicateStatButton.Visibility = Visibility.Visible;
-            //    ValidationButton.Visibility = Visibility.Visible;
-            //    ImageValidButton.Visibility = Visibility.Visible;
-            //    IDAssignerButton.Visibility = Visibility.Visible;
-            //    ribFormatTab.Visibility = Visibility.Visible;
-            //    rbgPrediction.Visibility = Visibility.Collapsed;
-            //    PanelTools.IsEnabled = true;
-            //    ValidationStatVisibility = settings.blnValidationStat ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-            //    ColorROIInfoVisibility = Visibility.Collapsed;
-            //    lblZoomStatus.Content = "Labeller Mode";
-            //    lblZoomStatus.Visibility = Visibility.Visible;
-            //    System.Windows.Media.Animation.Storyboard sb = this.Resources["sbHideZoomLabel"] as System.Windows.Media.Animation.Storyboard;
-            //    sb.Begin(lblZoomStatus);
-            //    radRibEdit.Visibility = Visibility.Visible;
-            //    rbgManageDatasheet.Visibility = Visibility.Visible;
-            //    rtabAugment.IsEnabled = true;
-            //    rtabAutopilot.IsEnabled = true;
-            //    rbgEdit.Visibility = Visibility.Visible;
-            //    borderQuickPallette.Visibility = Visibility.Visible;
-            //    ExportSegregateButton.Visibility = Visibility.Collapsed;
-            //    ImportButton.Visibility = Visibility.Collapsed;
-            //    ImportMultitButton.Visibility = Visibility.Visible;
-            //}
-            //else if (settings.ApplicationMode == "Normal" && settings.ClassType == EnumClassType.Segregation)
-            //{
-            //    rbgJson.Visibility = Visibility.Collapsed;
-            //    rbgXML.Visibility = Visibility.Collapsed;
-            //    rbgROI.Visibility = Visibility.Collapsed;
-            //    rbgHistory.Visibility = Visibility.Collapsed;
-            //    DuplicateStatButton.Visibility = Visibility.Collapsed;
-            //    ValidationButton.Visibility = Visibility.Collapsed;
-            //    ImageValidButton.Visibility = Visibility.Collapsed;
-            //    IDAssignerButton.Visibility = Visibility.Collapsed;
-            //    ribFormatTab.Visibility = Visibility.Collapsed;
-            //    rbgPrediction.Visibility = Visibility.Collapsed;
-            //    PanelTools.IsEnabled = false;
-            //    ValidationStatVisibility = Visibility.Collapsed;
-            //    ColorROIInfoVisibility = Visibility.Collapsed;
-            //    lblZoomStatus.Content = "Image Segregation mode";
-            //    lblZoomStatus.Visibility = Visibility.Visible;
-            //    System.Windows.Media.Animation.Storyboard sb = this.Resources["sbHideZoomLabel"] as System.Windows.Media.Animation.Storyboard;
-            //    sb.Begin(lblZoomStatus);
-            //    radRibEdit.Visibility = Visibility.Collapsed;
-            //    rbgManageDatasheet.Visibility = Visibility.Collapsed;
-            //    rtabAugment.IsEnabled = false;
-            //    rtabAutopilot.IsEnabled = false;
-            //    rbgEdit.Visibility = Visibility.Collapsed;
-            //    borderQuickPallette.Visibility = Visibility.Collapsed;
-            //    ExportSegregateButton.Visibility = Visibility.Visible;
-            //    ImportButton.Visibility = Visibility.Visible;
-            //    ImportMultitButton.Visibility = Visibility.Collapsed;
-            //}
-            //else
-            //{
-            //    rbgJson.Visibility = Visibility.Collapsed;
-            //    rbgXML.Visibility = Visibility.Collapsed;
-            //    rbgROI.Visibility = Visibility.Collapsed;
-            //    rbgHistory.Visibility = Visibility.Collapsed;
-            //    DuplicateStatButton.Visibility = Visibility.Collapsed;
-            //    ValidationButton.Visibility = Visibility.Collapsed;
-            //    ImageValidButton.Visibility = Visibility.Collapsed;
-            //    IDAssignerButton.Visibility = Visibility.Collapsed;
-            //    ribFormatTab.Visibility = Visibility.Collapsed;
-            //    rbgPrediction.Visibility = Visibility.Visible;
-            //    PanelTools.IsEnabled = false;
-            //    SelectedShape = EnumSelectedShape.Null;
-            //    for (int i = 0; i < PanelTools.Children.Count; i++)
-            //        (PanelTools.Children[i] as System.Windows.Controls.Button).Background = null;
-            //    ValidationStatVisibility = Visibility.Collapsed;
-            //    ColorROIInfoVisibility = Visibility.Visible;
-            //    lblZoomStatus.Content = "Application is switch to Test Mode";
-            //    lblZoomStatus.Visibility = Visibility.Visible;
-            //    System.Windows.Media.Animation.Storyboard sb = this.Resources["sbHideZoomLabel"] as System.Windows.Media.Animation.Storyboard;
-            //    sb.Begin(lblZoomStatus);
-            //    radRibEdit.Visibility = Visibility.Collapsed;
-            //    rbgManageDatasheet.Visibility = Visibility.Visible;
-            //    rtabAugment.IsEnabled = false;
-            //    rbgEdit.Visibility = Visibility.Visible;
-            //    borderQuickPallette.Visibility = Visibility.Visible;
-            //    ExportSegregateButton.Visibility = Visibility.Collapsed;
-            //    ImportButton.Visibility = Visibility.Collapsed;
-            //    ImportMultitButton.Visibility = Visibility.Visible;
-            //}
+        {           
             if (settings.ClassType == EnumClassType.Segregation)
             {
                 ImportButton.Visibility = Visibility.Collapsed;
@@ -686,6 +597,11 @@ namespace GenieSupervisor
                 rbgROI.Visibility = Visibility.Visible;
                 SegregateAllButton.Visibility = Visibility.Collapsed;
             }
+
+            bool bIsPatchCore = settings.Architecture.Contains(settings.PatchcoreAlias);
+            btnAugmentation.Visibility = bIsPatchCore ? Visibility.Collapsed : Visibility.Visible;
+            DataSplit.Text = bIsPatchCore ? "Train/Test Data Splitter" : "Train/Val/Test Data Splitter";
+            DataSplit.ToolTip = bIsPatchCore ? "Split Data into train/test" : "Split Data into train/val/test";
         }
         /// <summary>
         /// Function to update Labelling statistics continuously using thread and 

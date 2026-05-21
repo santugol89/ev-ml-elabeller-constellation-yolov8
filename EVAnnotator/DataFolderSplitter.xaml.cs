@@ -17,6 +17,10 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
+using System.Windows.Threading;
+using Telerik.Windows.Controls.DataVisualization.Map.BingRest;
+using Telerik.Windows.Shapes;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace GenieSupervisor
 {
@@ -29,9 +33,10 @@ namespace GenieSupervisor
         string Operation;
         BackgroundWorker BGWorkerFormat;
         int[] splitPercent = new int[3];
-        int[] arrTrainValues = new int[]{ 80, 70, 60, 50 };
+        int[] arrTrainValues = new int[] { 80, 70, 60, 50 };
         //int[] arrValidationValues = new int[] { 50, 40, 30, 20, 15, 10 };
         //int[] arrTestValues = new int[] { 40, 30, 20, 15, 10, 0 };
+        bool bIsPatchCore = false;
 
         public DataFolderSplitter(MainWindow app, string strOperation)
         {
@@ -44,8 +49,20 @@ namespace GenieSupervisor
             lblImageCount.Content = app.TotalLabelledImages;
             int totalClassCount = app.ImageMenuList.Where(item => item.ImageBox.ListImageClass.Count > 0 && item.MenuItemBrush != app.ImageMenuBrushes[2]).SelectMany(s => s.ImageBox.ListImageClass).Count();
             lblRegionCount.Content = totalClassCount;
+            bIsPatchCore = app.settings.Architecture == app.settings.PatchcoreAlias;
+            lblHeading.Content = bIsPatchCore ? "Train/Test dataset splitter" : "Train/Val/Test dataset splitter";
+            spVal.Visibility = bIsPatchCore ? Visibility.Collapsed : Visibility.Visible;
             cmbTrain.ItemsSource = arrTrainValues;
             cmbTrain.SelectedIndex = 0;
+
+            if (bIsPatchCore)
+            {
+                gridMain.Visibility = Visibility.Collapsed;
+                gridPatchcore.Visibility = Visibility.Visible;
+                LoadPatchcoreClassSummary();
+                UpdatePatchcoreSplitCounts();
+            }
+
             this.PreviewKeyDown += new System.Windows.Input.KeyEventHandler(HandleEsc);
         }
 
@@ -87,21 +104,21 @@ namespace GenieSupervisor
 
             var tempImageList = app.ImageMenuList.Where(item => item.ImageBox.ListImageClass.Count > 0 && item.MenuItemBrush != app.ImageMenuBrushes[2]).ToList();
             List<string> listNotEnoughClass = new List<string>();
-            foreach(string strClass in app.settings.ListEVSupervisorClassAlias)
+            foreach (string strClass in app.settings.ListEVSupervisorClassAlias)
             {
                 int count = tempImageList.Sum(item => item.ImageBox.ListImageClass.Where(s => s.ClassAlias.ToUpper() == strClass.ToUpper()).Count());
                 if (count < 5)
                     listNotEnoughClass.Add(strClass);
             }
-            if(tempImageList.Count < 10)
+            if (tempImageList.Count < 10)
             {
-                System.Windows.MessageBox.Show("Dataset should contain minimum 10 " + lblLabelImage.Content.ToString().Trim().Replace(":","") + "to split train/val/test set.", "Info", MessageBoxButton.OK, MessageBoxImage.Warning,
+                System.Windows.MessageBox.Show("Dataset should contain minimum 10 " + lblLabelImage.Content.ToString().Trim().Replace(":", "") + "to split train/val/test set.", "Info", MessageBoxButton.OK, MessageBoxImage.Warning,
                         MessageBoxResult.None);
                 return;
             }
-            else if(listNotEnoughClass.Count > 0)
+            else if (listNotEnoughClass.Count > 0)
             {
-                if(listNotEnoughClass.Count == app.settings.ListEVSupervisorClassAlias.Count)
+                if (listNotEnoughClass.Count == app.settings.ListEVSupervisorClassAlias.Count)
                 {
                     if (app.settings.ClassType != EnumClassType.Segregation)
                         System.Windows.MessageBox.Show("Atlease one class must have more than 5 annotation in labelled images. Please label more images from loaded dataset to continue.", "Info", MessageBoxButton.OK, MessageBoxImage.Warning,
@@ -118,7 +135,7 @@ namespace GenieSupervisor
                 if (app.settings.ClassType != EnumClassType.Segregation)
                     result = System.Windows.MessageBox.Show("The following classes do not have enough labelled annotations. Each class must have a minimum of 5 annotations : \n" +
                             strClasses + "\nDo you still want to continue without including above class records in the train/val/test data split folders?", "Confirm", MessageBoxButton.YesNo,
-                            MessageBoxImage.Question,MessageBoxResult.None);
+                            MessageBoxImage.Question, MessageBoxResult.None);
                 else
                     result = System.Windows.MessageBox.Show("The following classes do not have enough segregated images. Each class must have a minimum of 5 segregated images : \n" +
                             strClasses + "\nDo you still want to continue without including above class records in the train/val/test data split folders?", "Confirm", MessageBoxButton.YesNo,
@@ -243,7 +260,7 @@ namespace GenieSupervisor
                 List<string> listClassNames = new List<string>();
                 if (app.settings.ClassType == EnumClassType.Rectangle || app.settings.ClassType == EnumClassType.Polyline)
                 {
-                    string strImageName = app.settings.Architecture == "YoloV8" || app.settings.Architecture == "SegmentationV8" ? "images" : "Images";
+                    string strImageName = app.settings.Architecture == app.settings.DetectionAlias || app.settings.Architecture == app.settings.SegmentationAlias ? "images" : "Images";
                     string strTrainImagesPath = System.IO.Path.Combine(strTrainDataSetPath, strImageName);
                     if (!Directory.Exists(strTrainImagesPath))
                         Directory.CreateDirectory(strTrainImagesPath);
@@ -340,7 +357,7 @@ namespace GenieSupervisor
                         //For Test set folder
                         sbContent = new StringBuilder();
                         for (int count = nSplitCount[0] + nSplitCount[1]; count < listFilterdImages.Count; count++)
-                        {                           
+                        {
                             string sourceFilePath = listFilterdImages[count].ImagePath;
                             string destFilePath = strTestSetPath + "\\" + System.IO.Path.GetFileName(sourceFilePath);
 
@@ -354,7 +371,7 @@ namespace GenieSupervisor
                                 sbContent.AppendLine(strAttributes);
                             }
                             catch { }
-                        }  
+                        }
                         File.AppendAllText(strTestCSVPath, sbContent.ToString());
                     }
 
@@ -375,8 +392,8 @@ namespace GenieSupervisor
                         }
                     }
                 }
-                else if(app.settings.ClassType == EnumClassType.Segregation)
-                {                    
+                else if (app.settings.ClassType == EnumClassType.Segregation)
+                {
                     for (int count = 0; count < app.settings.dictEVSupervisorClass.Count; count++)
                     {
                         string curClass = app.settings.dictEVSupervisorClass.ElementAt(count).Value;
@@ -414,7 +431,7 @@ namespace GenieSupervisor
                         nSplitCount[1] = Convert.ToInt32(Math.Round((listFilterdImages.Count * splitPercent[1]) * 1.0 / 100, 0));
                         nSplitCount[2] = listFilterdImages.Count - (nSplitCount[0] + nSplitCount[1]);
 
-                        if(nSplitCount[2] > nSplitCount[1])
+                        if (nSplitCount[2] > nSplitCount[1])
                         {
                             int temp = nSplitCount[2];
                             nSplitCount[2] = nSplitCount[1];
@@ -615,7 +632,7 @@ namespace GenieSupervisor
                     app.busyIndicator.IsBusy = false;
                     System.Windows.MessageBox.Show("The specified Output Data path, file name, or both are too long..!\nPlease select proper path in settings->Output Data Path..", "Long Path Error", MessageBoxButton.OK,
                                         MessageBoxImage.Error, MessageBoxResult.None);
-                }); 
+                });
             }
 
             catch (Exception ex)
@@ -624,7 +641,7 @@ namespace GenieSupervisor
                 Dispatcher.Invoke(() => {
                     app.busyIndicator.IsBusy = false;
                     System.Windows.MessageBox.Show("Something went wrong..!\n" + ex.Message, "Data spilt failed", MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.None, System.Windows.MessageBoxOptions.DefaultDesktopOnly);
-                }); 
+                });
                 Utilities.LogMessage("DataFolderSplitter::SplitDataFolderintoParts: " + ex.Message, 0);
             }
             finally
@@ -640,21 +657,6 @@ namespace GenieSupervisor
             try
             {
                 string strProjectname = app.settings.dictProjectList.ContainsKey(app.settings.CurrentProject) ? app.settings.dictProjectList[app.settings.CurrentProject] : "";
-                //string classiniPath = app.ConfigFilePath + @"Admin\" + strProjectname + @"\" + app.settings.Architecture + @"\class_names.ini";
-                //if (File.Exists(classiniPath))
-                //    File.Delete(classiniPath);
-
-                //IniFile iniFile = new IniFile(classiniPath);
-                //foreach (KeyValuePair<int, string> curClass in app.settings.dictEVSupervisorClass)
-                //{
-                //    string ClassName = curClass.Value.Split('(', ')').Length > 0 ? curClass.Value.Split('(', ')')[0] : "";
-                //    string ClassAlias = curClass.Value.Split('(', ')').Length > 1 ? curClass.Value.Split('(', ')')[1] : curClass.Value.Split('(', ')')[0];
-                //    iniFile.WriteValue("Class", ClassAlias, ClassName);
-                //}
-                //for (int i = 0; i < app.settings.ListPassClass.Count; i++)
-                //    iniFile.WriteValue("Pass Class", (i + 1).ToString(), app.settings.ListPassClass[i]);
-                //for (int i = 0; i < app.settings.ListFailClass.Count; i++)
-                //    iniFile.WriteValue("Fail Class", (i + 1).ToString(), app.settings.ListFailClass[i]);
 
                 if (!Directory.Exists(app.ConfigFilePath + @"Admin\" + strProjectname + @"\" + app.settings.Architecture + @"\releasedModels"))
                     Directory.CreateDirectory(app.ConfigFilePath + @"Admin\" + strProjectname + @"\" + app.settings.Architecture + @"\releasedModels");
@@ -672,7 +674,8 @@ namespace GenieSupervisor
                     iniModelFile.WriteValue("ClassificationModelInfo", "Date", DateTime.Now.Date.ToString("dd-MM-yyyy"));
                     iniModelFile.WriteValue("ClassificationModelInfo", "Classes", app.settings.dictEVSupervisorClass.Count);
                     iniModelFile.WriteValue("ClassificationModelInfo", "Epochs", "");
-                    iniModelFile.WriteValue("ClassificationModelInfo", "Version", "1.0.0.1");
+                    iniModelFile.WriteValue("ClassificationModelInfo", "Version", "1.0.0.0");
+                    iniModelFile.WriteValue("ClassificationModelInfo", "IlluminationType", app.settings.PatchcoreIlluminationType);
 
                     iniModelFile.WriteValue("ClassificationParameter", "Mean", "");
                     iniModelFile.WriteValue("ClassificationParameter", "ImageWidth", "");
@@ -738,39 +741,88 @@ namespace GenieSupervisor
             }
         }
 
+        //private void cmbTrain_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        //{
+        //    if (cmbTrain.SelectedIndex == -1)
+        //        return;
+
+        //    int nTrainVal = (int)cmbTrain.SelectedValue;
+        //    int remainVal = 100 - nTrainVal;
+        //    int nValidation = Convert.ToInt16(Math.Round((remainVal * 1.0) / 2.0, 0));
+        //    txtVal.Text = nValidation.ToString();
+        //    txtTest.Text = (100 - (nTrainVal + nValidation)).ToString();
+
+        //    splitPercent[0] = cmbTrain.SelectedIndex == -1 ? 0 : nTrainVal;
+        //    splitPercent[1] = txtVal.Text == string.Empty ? 0 : Convert.ToInt16(txtVal.Text);
+        //    splitPercent[2] = txtTest.Text == string.Empty ? 0 : Convert.ToInt16(txtTest.Text);
+
+        //    int TotalCount = int.TryParse(lblRegionCount.Content.ToString(), out int a) ? a : 0;
+        //    int[] nSplitCount = new int[3];
+        //    nSplitCount[0] = Convert.ToInt32(Math.Round((TotalCount * splitPercent[0]) * 1.0 / 100, 0));
+        //    nSplitCount[1] = Convert.ToInt32(Math.Round((TotalCount * splitPercent[1]) * 1.0 / 100, 0));
+        //    nSplitCount[2] = TotalCount - (nSplitCount[0] + nSplitCount[1]);
+
+        //    if (nSplitCount[2] > nSplitCount[1])
+        //    {
+        //        int temp = nSplitCount[2];
+        //        nSplitCount[2] = nSplitCount[1];
+        //        nSplitCount[1] = temp;
+        //    }
+
+        //    if (nSplitCount[2] < 0)
+        //        nSplitCount[2] = 0;
+
+        //    txtTrainData.Text = nSplitCount[0].ToString();
+        //    txtValData.Text = nSplitCount[1].ToString();
+        //    txtTestData.Text = nSplitCount[2].ToString();
+        //}
+
         private void cmbTrain_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (cmbTrain.SelectedIndex == -1)
                 return;
 
             int nTrainVal = (int)cmbTrain.SelectedValue;
-            int remainVal = 100 - nTrainVal;
-            int nValidation = Convert.ToInt16(Math.Round((remainVal * 1.0) / 2.0, 0));
-            txtVal.Text = nValidation.ToString();
-            txtTest.Text = (100 - (nTrainVal + nValidation)).ToString();
 
-            splitPercent[0] = cmbTrain.SelectedIndex == -1 ? 0 : nTrainVal;
-            splitPercent[1] = txtVal.Text == string.Empty ? 0 : Convert.ToInt16(txtVal.Text);
-            splitPercent[2] = txtTest.Text == string.Empty ? 0 : Convert.ToInt16(txtTest.Text);
-
-            int TotalCount = int.TryParse(lblRegionCount.Content.ToString(), out int a) ? a : 0;
-            int[] nSplitCount = new int[3];
-            nSplitCount[0] = Convert.ToInt32(Math.Round((TotalCount * splitPercent[0]) * 1.0 / 100, 0));
-            nSplitCount[1] = Convert.ToInt32(Math.Round((TotalCount * splitPercent[1]) * 1.0 / 100, 0));
-            nSplitCount[2] = TotalCount - (nSplitCount[0] + nSplitCount[1]);
-
-            if (nSplitCount[2] > nSplitCount[1])
+            if (bIsPatchCore)
             {
-                int temp = nSplitCount[2];
-                nSplitCount[2] = nSplitCount[1];
-                nSplitCount[1] = temp;
+                // ✅ Only Train & Test
+                int nTest = 100 - nTrainVal;
+
+                txtVal.Text = "0"; // not used
+                txtTest.Text = nTest.ToString();
+
+                splitPercent[0] = nTrainVal; // Train
+                splitPercent[1] = 0;         // Validation
+                splitPercent[2] = nTest;     // Test
             }
+            else
+            {
+                // ✅ Existing logic (Train / Val / Test)
+                int remainVal = 100 - nTrainVal;
+                int nValidation = Convert.ToInt16(Math.Round((remainVal * 1.0) / 2.0, 0));
+
+                txtVal.Text = nValidation.ToString();
+                txtTest.Text = (100 - (nTrainVal + nValidation)).ToString();
+
+                splitPercent[0] = nTrainVal;
+                splitPercent[1] = nValidation;
+                splitPercent[2] = 100 - (nTrainVal + nValidation);
+            }
+
+            // ✅ Count calculation (works for both modes)
+            int TotalCount = int.TryParse(lblRegionCount.Content.ToString(), out int a) ? a : 0;
+
+            int[] nSplitCount = new int[3];
+            nSplitCount[0] = Convert.ToInt32(Math.Round((TotalCount * splitPercent[0]) / 100.0));
+            nSplitCount[1] = Convert.ToInt32(Math.Round((TotalCount * splitPercent[1]) / 100.0));
+            nSplitCount[2] = TotalCount - (nSplitCount[0] + nSplitCount[1]);
 
             if (nSplitCount[2] < 0)
                 nSplitCount[2] = 0;
 
             txtTrainData.Text = nSplitCount[0].ToString();
-            txtValData.Text = nSplitCount[1].ToString();
+            txtValData.Text = nSplitCount[1].ToString(); // will be 0 for PatchCore
             txtTestData.Text = nSplitCount[2].ToString();
         }
 
@@ -789,5 +841,432 @@ namespace GenieSupervisor
         //    if (nSplit1 == 0)
         //        txtFolder2.Text = string.Empty;
         //}
+
+        // ─────────────────────────────────────────────────────────────────────
+        // PatchCore grid helpers
+        // ─────────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Populates the DataGrid with per-class image counts, tagging each class
+        /// as "Good" (pass class) or "Defect" (fail class).
+        /// </summary>
+        private void LoadPatchcoreClassSummary()
+        {
+            try
+            {
+                var items = new List<PatchcoreClassRow>();
+                var labelledImages = app.ImageMenuList
+                    .Where(item => item.ImageBox.ListImageClass.Count > 0
+                                   && item.MenuItemBrush != app.ImageMenuBrushes[2])
+                    .ToList();
+
+                foreach (var kvp in app.settings.dictEVSupervisorClass)
+                {
+                    string fullName = kvp.Value;
+                    string alias = fullName.Split(new char[] { '(', ')' }).Length > 1
+                                       ? fullName.Split(new char[] { '(', ')' })[1]
+                                       : fullName.Split(new char[] { '(', ')' })[0];
+                    string className = fullName.Split(new char[] { '(', ')' })[0];
+
+                    int count = labelledImages
+                        .SelectMany(img => img.ImageBox.ListImageClass
+                            .Where(c => c.ClassAlias.ToUpper() == alias.ToUpper()))
+                        .Count();
+
+                    bool isDefect = app.settings.ListFailClass
+                        .Any(fc => fc.ToUpper() == alias.ToUpper());
+                    bool isGood = app.settings.ListPassClass
+                        .Any(pc => pc.ToUpper() == alias.ToUpper());
+
+                    string classType = isDefect ? "Defect" : (isGood ? "Good" : "Other");
+
+                    items.Add(new PatchcoreClassRow
+                    {
+                        ClassName = string.IsNullOrWhiteSpace(className) ? alias : className,
+                        ClassType = classType,
+                        ImageCount = count
+                    });
+                }
+
+                dgPatchcoreClasses.ItemsSource = items;
+            }
+            catch (Exception ex)
+            {
+                Utilities.LogMessage("DataFolderSplitter::LoadPatchcoreClassSummary: " + ex.Message, 9);
+            }
+        }
+
+        /// <summary>
+        /// Recalculates and updates the Train/Test count labels based on the slider value.
+        /// Good images: trainPct% -> Train, rest -> Test.
+        /// Defect images: 100% -> Test.
+        /// </summary>
+        private void UpdatePatchcoreSplitCounts()
+        {
+            try
+            {
+                int trainPct = (int)(sldrGoodTrainSplit.Value);
+                int testPct = 100 - trainPct;
+
+                lblGoodTrainPct.Content = trainPct + "%";
+                lblGoodTestPct.Content = testPct + "% Test";
+
+                lblPatchcoreSplitInfo.Text =
+                    "Defect images will move to Test folder.  " +
+                    "Good images will move " + trainPct + "% to Train folder and " + testPct + "% to Test folder.";
+
+                // Count good and defect images
+                var labelledImages = app.ImageMenuList
+                    .Where(item => item.ImageBox.ListImageClass.Count > 0
+                                   && item.MenuItemBrush != app.ImageMenuBrushes[2])
+                    .ToList();
+
+                int goodCount = 0;
+                int defectCount = 0;
+
+                foreach (var kvp in app.settings.dictEVSupervisorClass)
+                {
+                    string fullName = kvp.Value;
+                    string alias = fullName.Split(new char[] { '(', ')' }).Length > 1
+                                      ? fullName.Split(new char[] { '(', ')' })[1]
+                                      : fullName.Split(new char[] { '(', ')' })[0];
+
+                    int count = labelledImages
+                        .SelectMany(img => img.ImageBox.ListImageClass
+                            .Where(c => c.ClassAlias.ToUpper() == alias.ToUpper()))
+                        .Count();
+
+                    bool isDefect = app.settings.ListFailClass
+                        .Any(fc => fc.ToUpper() == alias.ToUpper());
+                    bool isGood = app.settings.ListPassClass
+                        .Any(pc => pc.ToUpper() == alias.ToUpper());
+
+                    if (isDefect) defectCount += count;
+                    else if (isGood) goodCount += count;
+                }
+
+                int goodToTrain = (int)Math.Round(goodCount * trainPct / 100.0);
+                int goodToTest = goodCount - goodToTrain;
+                int totalTrain = goodToTrain;
+                int totalTest = goodToTest + defectCount;
+
+                lblPCTrainCount.Content = totalTrain.ToString();
+                lblPCTestCount.Content = totalTest.ToString();
+
+                // Store split info so btnProceed_Click can use it
+                splitPercent[0] = trainPct;   // Good -> Train %
+                splitPercent[1] = 0;           // No validation for PatchCore
+                splitPercent[2] = testPct;     // Good -> Test %  (defect always 100% test)
+            }
+            catch (Exception ex)
+            {
+                Utilities.LogMessage("DataFolderSplitter::UpdatePatchcoreSplitCounts: " + ex.Message, 9);
+            }
+        }
+
+        private void sldrGoodTrainSplit_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (!IsLoaded) return;
+            UpdatePatchcoreSplitCounts();
+        }
+
+        private void btnPatchcoreProceed_Click(object sender, RoutedEventArgs e)
+        {
+            // ── Validation: only Good-class images are checked ─────────────────
+            var labelledImages = app.ImageMenuList
+                .Where(item => item.ImageBox.ListImageClass.Count > 0
+                               && item.MenuItemBrush != app.ImageMenuBrushes[2])
+                .ToList();
+
+            // Count total Good images across all Pass classes
+            int nTotalGoodImages = 0;
+            foreach (var kvp in app.settings.dictEVSupervisorClass)
+            {
+                string fullName = kvp.Value;
+                string alias = fullName.Split(new char[] { '(', ')' }).Length > 1
+                                  ? fullName.Split(new char[] { '(', ')' })[1]
+                                  : fullName.Split(new char[] { '(', ')' })[0];
+
+                bool isGood = app.settings.ListPassClass
+                    .Any(pc => pc.ToUpper() == alias.ToUpper());
+
+                if (!isGood)
+                    continue;   // skip Defect classes entirely
+
+                nTotalGoodImages += labelledImages
+                    .SelectMany(img => img.ImageBox.ListImageClass
+                        .Where(c => c.ClassAlias.ToUpper() == alias.ToUpper()))
+                    .Count();
+            }
+
+            // Hard stop: must have at least 10 Good images
+            if (nTotalGoodImages < 10)
+            {
+                System.Windows.MessageBox.Show(
+                    "Dataset must contain at least 10 Good segregated images to split Train/Test set.\n" +
+                    "Current Good image count : " + nTotalGoodImages + "\n\n" +
+                    "Please segregate more Good images and try again.",
+                    "Insufficient Good Images", MessageBoxButton.OK, MessageBoxImage.Warning, MessageBoxResult.None);
+                return;
+            }
+
+            // ── Launch BackgroundWorker (no per-class exclusion needed) ────────
+            BGWorkerFormat = new BackgroundWorker
+            {
+                WorkerReportsProgress = true,
+                WorkerSupportsCancellation = true
+            };
+
+            // Pass an empty exclude list — defect images are always included as-is
+            app.busyIndicator.IsBusy = true;
+            BGWorkerFormat.DoWork += bgwDowork_PatchcoreSplit;
+            BGWorkerFormat.RunWorkerAsync(new List<string>());
+            this.Close();
+        }
+
+        private void bgwDowork_PatchcoreSplit(object sender, DoWorkEventArgs e)
+        {
+            List<string> listExcludeClass = e.Argument as List<string>;
+            if (BGWorkerFormat.CancellationPending)
+            {
+                e.Cancel = true;
+                return;
+            }
+            else
+            {
+                Thread threadSplit = new Thread(() => SplitDataFolderPatchcore(listExcludeClass));
+                threadSplit.IsBackground = true;
+                threadSplit.Start();
+            }
+        }
+
+        /// <summary>
+        /// PatchCore-specific folder split.
+        ///
+        /// Folder structure created:
+        ///   Train        ///       Good\          <- trainPct% of Good-class images
+        ///   Test        ///       Good\          <- remaining Good images (testPct%)
+        ///       &lt;DefectClass&gt;\  <- 100% of each Defect-class images (per class sub-folder)
+        /// </summary>
+        private void SplitDataFolderPatchcore(List<string> listExcludeAlias)
+        {
+            try
+            {
+                string strProjectname = app.settings.dictProjectList.ContainsKey(app.settings.CurrentProject)
+                                        ? app.settings.dictProjectList[app.settings.CurrentProject] : "";
+
+                string strTrainDataSetPath = app.ConfigFilePath + @"Admin\" + strProjectname + @"\" + app.settings.Architecture + @"\" + app.settings.trainFolder;
+                string strTestSetPath = app.ConfigFilePath + @"Admin\" + strProjectname + @"\" + app.settings.Architecture + @"\" + app.settings.testsetFolder;
+                string strSourceDataSetPath = app.ConfigFilePath + @"Admin\" + strProjectname + @"\" + app.settings.Architecture + @"\" + app.settings.sourceFolder;
+
+                // Guard: images must not already be loaded from these paths
+                if (app.settings.LoadImagePath.Contains(strTrainDataSetPath) ||
+                    app.settings.LoadImagePath.Contains(strTestSetPath) ||
+                    app.settings.LoadImagePath.Contains(strSourceDataSetPath))
+                {
+                    Dispatcher.Invoke(() => 
+                    {
+                        app.busyIndicator.IsBusy = false;
+                        System.Windows.MessageBox.Show("Error while Data-split operation! Images are loaded from train/test/source path.Cannot continue." +
+                                                    "Load images from a different path and retry.",
+                                                    "Abort", MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.None);
+                        Utilities.LogMessage("PatchCore DataSplit aborted: images loaded from output paths.", 0);
+                    });
+                    return;
+                }
+
+                // ── Disk-space check ─────────────────────────────────────────
+                List<string> listImagePath = app.ImageMenuList.Where(item => item.ImageBox.ListImageClass.Count > 0
+                                    && item.MenuItemBrush != app.ImageMenuBrushes[2]).Select(item => item.ImagePath).ToList();
+
+                if (!app.IsSegregationDiskSpaceOK(app.ConfigFilePath, listImagePath))
+                {
+                    Dispatcher.Invoke(() => {
+                        app.busyIndicator.IsBusy = false;
+                        System.Windows.MessageBox.Show(
+                            "Output disk is full. Cannot copy images. Free some space and try again.",
+                            "No Storage Space", MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.None);
+                    });
+                    Utilities.LogMessage("PatchCore DataSplit aborted: insufficient disk space.", 0);
+                    return;
+                }
+
+                // ── Recreate output folders ───────────────────────────────────
+                if (Directory.Exists(strTrainDataSetPath))
+                    Directory.Delete(strTrainDataSetPath, true);
+                Directory.CreateDirectory(strTrainDataSetPath);
+
+                if (Directory.Exists(strTestSetPath))
+                    Directory.Delete(strTestSetPath, true);
+                Directory.CreateDirectory(strTestSetPath);
+
+                if (Directory.Exists(strSourceDataSetPath))
+                    Directory.Delete(strSourceDataSetPath, true);
+                Directory.CreateDirectory(strSourceDataSetPath);
+
+                // Train\Good  and  Test\Good  sub-folders
+                string strTrainGoodPath = System.IO.Path.Combine(strTrainDataSetPath, "Good");
+                string strTestGoodPath = System.IO.Path.Combine(strTestSetPath, "Good");
+                Directory.CreateDirectory(strTrainGoodPath);
+                Directory.CreateDirectory(strTestGoodPath);
+
+                bool bIsSourceCopy = true;
+                Dispatcher.Invoke(() => bIsSourceCopy = chkCopySource.IsChecked.Value);
+
+                int trainPct = splitPercent[0];   // Good images -> Train %
+                int nTrainTotal = 0, nTestTotal = 0;
+                List<string> listClassNames = new List<string>();
+
+                var labelledImages = app.ImageMenuList.Where(item => item.ImageBox.ListImageClass.Count > 0
+                                   && item.MenuItemBrush != app.ImageMenuBrushes[2]).ToList();
+
+                // ── Process each class ────────────────────────────────────────
+                foreach (var kvp in app.settings.dictEVSupervisorClass)
+                {
+                    string fullName = kvp.Value;
+                    string alias = fullName.Split(new char[] { '(', ')' }).Length > 1
+                                       ? fullName.Split(new char[] { '(', ')' })[1]
+                                       : fullName.Split(new char[] { '(', ')' })[0];
+                    string className = fullName.Split(new char[] { '(', ')' })[0].Trim();
+                    if (string.IsNullOrWhiteSpace(className)) className = alias;
+
+                    // Skip classes the user chose to exclude
+                    if (listExcludeAlias.Any(s => s.ToUpper() == alias.ToUpper()))
+                        continue;
+
+                    bool isGood = app.settings.ListPassClass.Any(pc => pc.ToUpper() == alias.ToUpper());
+                    bool isDefect = app.settings.ListFailClass.Any(fc => fc.ToUpper() == alias.ToUpper());
+
+                    // Gather all segregated images for this class
+                    var classImages = labelledImages.SelectMany(item => item.ImageBox.ListImageClass
+                            .Where(menu => menu.ClassAlias.ToUpper() == alias.ToUpper()).Select(menu => item.ImagePath)).Distinct().ToList();
+
+                    if (classImages.Count == 0)
+                        continue;
+
+                    listClassNames.Add(className);
+
+                    if (isGood)
+                    {
+                        // ── Good class: split by slider ratio ────────────────
+                        //    trainPct% -> Train\Good                        //    rest      -> Test\Good
+                        int nToTrain = (int)Math.Round(classImages.Count * trainPct / 100.0);
+                        int nToTest = classImages.Count - nToTrain;
+
+                        for (int i = 0; i < nToTrain; i++)
+                        {
+                            string src = classImages[i];
+                            string dest = System.IO.Path.Combine(strTrainGoodPath, System.IO.Path.GetFileName(src));
+                            try
+                            {
+                                if (!Alphaleonis.Win32.Filesystem.File.Exists(dest))
+                                    Alphaleonis.Win32.Filesystem.File.Copy(src, dest, true);
+                            }
+                            catch { }
+                        }
+
+                        for (int i = nToTrain; i < classImages.Count; i++)
+                        {
+                            string src = classImages[i];
+                            string dest = System.IO.Path.Combine(strTestGoodPath, System.IO.Path.GetFileName(src));
+                            try
+                            {
+                                if (!Alphaleonis.Win32.Filesystem.File.Exists(dest))
+                                    Alphaleonis.Win32.Filesystem.File.Copy(src, dest, true);
+                            }
+                            catch { }
+                        }
+
+                        nTrainTotal += nToTrain;
+                        nTestTotal += nToTest;
+                    }
+                    else if (isDefect)
+                    {
+                        // ── Defect class: 100% -> Test\<ClassName>\ ──────────
+                        string strTestDefectClassPath = System.IO.Path.Combine(strTestSetPath, className);
+                        if (!Directory.Exists(strTestDefectClassPath))
+                            Directory.CreateDirectory(strTestDefectClassPath);
+
+                        foreach (string src in classImages)
+                        {
+                            string dest = System.IO.Path.Combine(strTestDefectClassPath, System.IO.Path.GetFileName(src));
+                            try
+                            {
+                                if (!Alphaleonis.Win32.Filesystem.File.Exists(dest))
+                                    Alphaleonis.Win32.Filesystem.File.Copy(src, dest, true);
+                            }
+                            catch { }
+                        }
+
+                        nTestTotal += classImages.Count;
+                    }
+
+                    // ── Source folder copy (all images, flat) ─────────────────
+                    if (bIsSourceCopy)
+                    {
+                        string strSourceClassPath = System.IO.Path.Combine(strSourceDataSetPath, className);
+                        if (!Directory.Exists(strSourceClassPath))
+                            Directory.CreateDirectory(strSourceClassPath);
+
+                        foreach (string src in classImages)
+                        {
+                            string dest = System.IO.Path.Combine(strSourceClassPath, System.IO.Path.GetFileName(src));
+                            try
+                            {
+                                if (!Alphaleonis.Win32.Filesystem.File.Exists(dest))
+                                    Alphaleonis.Win32.Filesystem.File.Copy(src, dest, true);
+                            }
+                            catch { }
+                        }
+                    }
+                }
+
+                GenerateClassModelini();
+                Dispatcher.Invoke(() =>
+                {
+                    app.busyIndicator.IsBusy = false;
+                    System.Windows.MessageBox.Show(
+                        "Train/Test dataset split completed successfully.\n\n" +
+                        "Train Data (Good)  : " + nTrainTotal + "\n" +
+                        "Test  Data (Total) : " + nTestTotal,
+                        "Success", MessageBoxButton.OK, MessageBoxImage.Information, MessageBoxResult.None);
+                });
+                Utilities.LogMessage("Anomay detection Train/Test dataset split completed successfully. Train: " + nTrainTotal + "  Test: " + nTestTotal, 0);
+            }
+            catch (Exception ex) when(ex is PathTooLongException || ex is DirectoryNotFoundException)
+            {
+                Dispatcher.Invoke(() => {
+                    app.busyIndicator.IsBusy = false;
+                    System.Windows.MessageBox.Show(
+                        "The specified output path or file name is too long.\nPlease set a shorter Output Data Path in Settings.",
+                        "Long Path Error", MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.None);
+                });
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.Invoke(() => {
+                    app.busyIndicator.IsBusy = false;
+                    System.Windows.MessageBox.Show(
+                        "Something went wrong!\n" + ex.Message,
+                        "PatchCore split failed", MessageBoxButton.OK, MessageBoxImage.Error,
+                        MessageBoxResult.None, System.Windows.MessageBoxOptions.DefaultDesktopOnly);
+                });
+                Utilities.LogMessage("DataFolderSplitter::SplitDataFolderPatchcore: " + ex.Message, 0);
+            }
+            finally
+            {
+                Dispatcher.Invoke(() => app.busyIndicator.IsBusy = false);
+            }
+        }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Data model for PatchCore class summary DataGrid
+    // ─────────────────────────────────────────────────────────────────────────
+    public class PatchcoreClassRow
+{
+    public string ClassName { get; set; }
+    public string ClassType { get; set; }
+    public int ImageCount { get; set; }
+}
 }

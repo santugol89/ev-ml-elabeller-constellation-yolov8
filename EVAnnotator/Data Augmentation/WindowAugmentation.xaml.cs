@@ -610,7 +610,7 @@ namespace GenieSupervisor.Data_Augmentation
                 }
                 else if (app.settings.ClassType == EnumClassType.Rectangle)
                 {
-                    string strImage = app.settings.Architecture == "YoloV8" || app.settings.Architecture == "SegmentationV8" ? "images" : "Images";
+                    string strImage = app.settings.Architecture == app.settings.DetectionAlias || app.settings.Architecture == app.settings.SegmentationAlias ? "images" : "Images";
                     string strTrainImagesPath = System.IO.Path.Combine(strTrainDataSetPath, strImage);
                     if(!Directory.Exists(strTrainImagesPath) || Directory.GetFiles(strTrainImagesPath).Length == 0)
                     {
@@ -858,7 +858,7 @@ namespace GenieSupervisor.Data_Augmentation
                 }
                 else if (app.settings.ClassType == EnumClassType.Polyline)
                 {
-                    string strImage = app.settings.Architecture == "YoloV8" || app.settings.Architecture == "SegmentationV8" ? "images" : "Images";
+                    string strImage = app.settings.Architecture == app.settings.DetectionAlias || app.settings.Architecture == app.settings.SegmentationAlias ? "images" : "Images";
                     string strTrainImagesPath = System.IO.Path.Combine(strTrainDataSetPath, strImage);
                     if (!Directory.Exists(strTrainImagesPath) || Directory.GetFiles(strTrainImagesPath).Length == 0)
                     {
@@ -992,8 +992,6 @@ namespace GenieSupervisor.Data_Augmentation
                                     AugmentCanvas = null;
                                     renderedBmp = null;
                                     GC.Collect();
-
-                                    
 
                                     shapeCoord = "{\"name\":\"" + strTempShape.Substring(strTempShape.LastIndexOf(':') + 1) + "\", \"all_points_x\": [" +
                                                         String.Join(", ", flipped_x) + "], \"all_points_y\": [" + String.Join(", ", all_point_y) + "] }";

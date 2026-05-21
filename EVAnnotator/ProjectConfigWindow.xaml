@@ -1,4 +1,4 @@
-﻿<Window x:Class="GenieSupervisor.ProjectConfigWindow"
+<Window x:Class="GenieSupervisor.ProjectConfigWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -10,234 +10,682 @@
         TextElement.FontWeight="Regular"
         TextElement.FontSize="13"
         TextElement.FontFamily="Segoe UI"
-        Left="430" Top="75" WindowStyle="None" BorderThickness="2" Width="auto" Height="auto" MaxHeight="800" BorderBrush="White"
-        WindowStartupLocation="Manual" ResizeMode="NoResize" ShowInTaskbar="False" SizeToContent="WidthAndHeight">
-    <Grid Background="#FF686262">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="30"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
-        <StackPanel Orientation="Horizontal" Grid.Row="0" VerticalAlignment="Top" HorizontalAlignment="Stretch" Height="30">
-            <Label x:Name="lblHeader" Content="Project"  HorizontalAlignment="Left" FontSize="15" Foreground="White" FontStyle="Italic" Margin="10,0,0,0"/>
-        </StackPanel>
-        <Border Cursor="Hand" Height="30" Width="30" CornerRadius="50" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="2,0">
-            <Border.Background>
-                <RadialGradientBrush>
-                    <GradientStop Color="#FF686262" Offset="0.968"/>
-                    <GradientStop Color="Red"/>
-                </RadialGradientBrush>
-            </Border.Background>
-            <TextBlock TextWrapping="Wrap" Height="30" Width="30" FontSize="18" TextAlignment="Center" Foreground="White" FontWeight="Bold" VerticalAlignment="Center" ToolTip="Exit" HorizontalAlignment="Center" Text="x" PreviewMouseLeftButtonDown="ButtonSaveClose_Click"></TextBlock>
-        </Border>
+        Left="430" Top="50" WindowStyle="None" BorderThickness="1" Width="650" Height="auto"
+        MaxHeight="820" BorderBrush="#2A2D35"
+        WindowStartupLocation="Manual" ResizeMode="NoResize" ShowInTaskbar="False" SizeToContent="Height">
 
-        <Grid Grid.Row="1" Background="Black">
+    <Window.Resources>
+        <!-- Color Palette -->
+        <SolidColorBrush x:Key="BgDeep"       Color="#0F1117"/>
+        <SolidColorBrush x:Key="BgPanel"      Color="#1A1D27"/>
+        <SolidColorBrush x:Key="BgCard"       Color="#20232E"/>
+        <SolidColorBrush x:Key="BgInput"      Color="#2A2D3A"/>
+        <SolidColorBrush x:Key="BgHover"      Color="#31354A"/>
+        <SolidColorBrush x:Key="AccentBlue"   Color="#4F8EF7"/>
+        <SolidColorBrush x:Key="AccentTeal"   Color="#2ECFB0"/>
+        <SolidColorBrush x:Key="AccentRed"    Color="#F75A5A"/>
+        <SolidColorBrush x:Key="TextPrimary"  Color="#E8EAF0"/>
+        <SolidColorBrush x:Key="TextSecond"   Color="#8B90A8"/>
+        <SolidColorBrush x:Key="TextMuted"    Color="#555A72"/>
+        <SolidColorBrush x:Key="Border"       Color="#2E3148"/>
+
+        <!-- Label style -->
+        <Style x:Key="FieldLabel" TargetType="Label">
+            <Setter Property="Foreground"          Value="{StaticResource TextSecond}"/>
+            <Setter Property="FontSize"            Value="12"/>
+            <Setter Property="FontWeight"          Value="Medium"/>
+            <Setter Property="VerticalAlignment"   Value="Center"/>
+            <Setter Property="Padding"             Value="0"/>
+            <Setter Property="Margin"              Value="0,0,10,0"/>
+            <Setter Property="Width"               Value="130"/>
+        </Style>
+
+        <!-- TextBox style -->
+        <Style x:Key="ModernTextBox" TargetType="TextBox">
+            <Setter Property="Background"          Value="{StaticResource BgInput}"/>
+            <Setter Property="Foreground"          Value="{StaticResource TextPrimary}"/>
+            <Setter Property="BorderBrush"         Value="{StaticResource Border}"/>
+            <Setter Property="BorderThickness"     Value="1"/>
+            <Setter Property="Height"              Value="32"/>
+            <Setter Property="FontSize"            Value="13"/>
+            <Setter Property="Padding"             Value="0,0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="CaretBrush"          Value="{StaticResource AccentBlue}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter Property="BorderBrush" Value="{StaticResource AccentBlue}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- RadioButton style -->
+        <Style x:Key="ModernRadio" TargetType="RadioButton">
+            <Setter Property="Foreground"          Value="{StaticResource TextSecond}"/>
+            <Setter Property="FontSize"            Value="12"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Margin"              Value="0,0,16,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Width="16" Height="16" CornerRadius="8"
+                                    BorderBrush="{StaticResource TextMuted}" BorderThickness="1.5"
+                                    Background="Transparent" Margin="0,0,6,0">
+                                <Ellipse x:Name="Dot" Width="8" Height="8"
+                                         Fill="{StaticResource AccentBlue}"
+                                         HorizontalAlignment="Center" VerticalAlignment="Center"
+                                         Visibility="Collapsed"/>
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsChecked, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
+                                                <Setter Property="BorderBrush" Value="{StaticResource AccentBlue}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                            </Border>
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Dot" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- CheckBox style -->
+        <Style x:Key="ModernCheck" TargetType="CheckBox">
+            <Setter Property="Foreground"          Value="{StaticResource TextSecond}"/>
+            <Setter Property="FontSize"            Value="12"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Border Width="16" Height="16" CornerRadius="4"
+                                    BorderBrush="{StaticResource TextMuted}" BorderThickness="1.5"
+                                    Background="Transparent" Margin="0,0,6,0" x:Name="ChkBorder">
+                                <materialDesign:PackIcon x:Name="ChkIcon" Kind="Check" Width="12" Height="12"
+                                                         Foreground="{StaticResource AccentTeal}"
+                                                         HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                         Visibility="Collapsed"/>
+                            </Border>
+                            <ContentPresenter VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="ChkIcon"   Property="Visibility"    Value="Visible"/>
+                                <Setter TargetName="ChkBorder" Property="BorderBrush"   Value="{StaticResource AccentTeal}"/>
+                                <Setter TargetName="ChkBorder" Property="Background"    Value="#1A2ECF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Section header -->
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="Foreground"  Value="{StaticResource TextSecond}"/>
+            <Setter Property="FontSize"    Value="11"/>
+            <Setter Property="FontWeight"  Value="SemiBold"/>
+            <Setter Property="Margin"      Value="0,0,0,10"/>
+        </Style>
+
+        <!-- Icon action button -->
+        <Style x:Key="IconBtn" TargetType="Button">
+            <Setter Property="Background"   Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor"       Value="Hand"/>
+            <Setter Property="Width"        Value="28"/>
+            <Setter Property="Height"       Value="28"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" Background="{TemplateBinding Background}"
+                                CornerRadius="6">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="{StaticResource BgHover}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Primary action button -->
+        <Style x:Key="PrimaryBtn" TargetType="telerik:RadButton">
+            <Setter Property="Height"           Value="36"/>
+            <Setter Property="Padding"          Value="20,0"/>
+            <Setter Property="FontSize"         Value="13"/>
+            <Setter Property="FontWeight"       Value="SemiBold"/>
+            <Setter Property="CornerRadius"     Value="8"/>
+            <Setter Property="BorderThickness"  Value="0"/>
+            <Setter Property="Cursor"           Value="Hand"/>
+            <Setter Property="Background"       Value="{StaticResource AccentBlue}"/>
+            <Setter Property="Foreground"       Value="White"/>
+        </Style>
+
+        <!-- Danger button -->
+        <Style x:Key="DangerBtn" TargetType="telerik:RadButton" BasedOn="{StaticResource PrimaryBtn}">
+            <Setter Property="Background" Value="#3A1A1A"/>
+            <Setter Property="Foreground" Value="{StaticResource AccentRed}"/>
+            <Setter Property="BorderBrush" Value="#5A2A2A"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+    </Window.Resources>
+
+    <!-- Root -->
+    <Border Background="{StaticResource BgDeep}" BorderBrush="#2E3148" BorderThickness="1" CornerRadius="10">
+        <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="auto" />
-                <RowDefinition Height="auto" />
-                <RowDefinition Height="50" />
+                <RowDefinition Height="auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="auto"/>
             </Grid.RowDefinitions>
 
-            <telerik:GroupBox Grid.Row="0" Header="Project Details" Margin="5,5" FontSize="12" Foreground="White" FontFamily="Segoe UI" BorderBrush="White" BorderThickness="0.5">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="auto" />
-                        <RowDefinition Height="auto" />
-                        <RowDefinition Height="auto" />
-                        <RowDefinition Height="auto" />
-                        <RowDefinition Height="auto" />
-                    </Grid.RowDefinitions>
-
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Label x:Name="lblProject" Content="Project Name: " Margin="5,0,0,0" Width="140" VerticalAlignment="Center" FontSize="14" Foreground="AntiqueWhite"/>
-                        <TextBox x:Name="txtProjectName" Height="20" TextAlignment="Left" Width="120" Foreground="Black" BorderBrush="Black" Margin="10,0,0,0" Visibility="Collapsed" FontSize="13" FontFamily="Segoe UI" PreviewTextInput ="txtClassName_PreviewTextInput"/>
-                        <telerik:RadComboBox Name="cmbProject" Height="28" Width="auto" MinWidth="100" Background="#FFFDFDFD" VerticalContentAlignment="Center" HorizontalAlignment="Stretch"
-                                      FontSize="14" Margin="10,0" VerticalAlignment="Center" SelectionChanged="cmbProject_SelectionChanged"/>
-                        <Border Name="AddProject" Width="25" Height="25" Background="Purple" CornerRadius="50" PreviewMouseLeftButtonDown="AddProject_Click" Cursor="Hand" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,5,0">
-                            <materialDesign:PackIcon Name="packIconAddProject" Background="Purple" Foreground="White" Kind="Plus" Height="18" Width="18" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <Border.ToolTip>
-                                <ToolTip>
-                                    <StackPanel>
-                                        <TextBlock FontStyle="Italic" Text="Click to add new project" Foreground="Black"/>
-                                    </StackPanel>
-                                </ToolTip>
-                            </Border.ToolTip>
-                        </Border>
+            <!-- ══════════════════════ TITLE BAR ══════════════════════ -->
+            <Border Grid.Row="0" Background="{StaticResource BgPanel}"
+                    CornerRadius="10,10,0,0">
+                <Border.Effect>
+                    <DropShadowEffect Color="Black" BlurRadius="8" ShadowDepth="2" Opacity="0.4"/>
+                </Border.Effect>
+                <Grid Margin="16,0">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="8" Height="8" CornerRadius="4"
+                                Background="{StaticResource AccentBlue}" Margin="0,0,10,0"/>
+                        <TextBlock x:Name="lblHeader" Text="Project Configuration"
+                                   Foreground="{StaticResource TextPrimary}"
+                                   FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5,0,5">
-                        <Label Content="Architecture: " Margin="5,0,0,0" Width="140" VerticalAlignment="Center" FontSize="14" Foreground="AntiqueWhite"/>
-                        <telerik:RadComboBox Name="cmbArchitecture" Height="30" Width="auto" MinWidth="100" Background="#FFFDFDFD" VerticalContentAlignment="Center" HorizontalAlignment="Stretch"
-                                      FontSize="15" Margin="10,0" VerticalAlignment="Center" DropDownWidth="150" SelectionChanged="cmbArchitecture_SelectionChanged"/>
-                    </StackPanel>
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Label Content="Station: " Margin="5,0,0,0" Width="140" VerticalAlignment="Center" FontSize="14" Foreground="AntiqueWhite"/>
-                        <TextBox x:Name="txtStation" Height="25" TextAlignment="Left" Width="120" Foreground="Black" BorderBrush="Black" Margin="10,0,0,0"  FontSize="15" FontFamily="Segoe UI" PreviewTextInput ="txtClassName_PreviewTextInput"/>
-                    </StackPanel>
-                    <StackPanel Grid.Row="3" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,5,0,5">
-                        <Label Content="Total Classes: " Margin="5,0,0,0" Width="140" VerticalAlignment="Center" FontSize="14" Foreground="AntiqueWhite"/>
-                        <TextBox x:Name="txtTotalClass" Height="25" TextAlignment="Left" Width="50" Foreground="Black" BorderBrush="Black" Margin="10,0,0,0"  FontSize="15" PreviewTextInput="txtNumber_PreviewTextInput"/>
-                        <Label Content="Total Lines: " Margin="70,0,0,0" VerticalAlignment="Center" FontSize="14" Foreground="AntiqueWhite" Visibility="Collapsed"/>
-                        <TextBox x:Name="txtTotalLines" Height="25" TextAlignment="Left" Width="50" Foreground="Black" Visibility="Collapsed" BorderBrush="Black" Margin="10,0,0,0"  FontSize="13" PreviewTextInput="txtNumber_PreviewTextInput"/>
-                    </StackPanel>
-                    
-                    <StackPanel x:Name="spType" Grid.Row="4" Orientation="Horizontal" VerticalAlignment="Center" IsEnabled="False">
-                        <Label Content="Annotation Type : " Margin="5,0,0,0" Width="140" VerticalAlignment="Center" FontSize="14" Foreground="AntiqueWhite"/>
-                        <RadioButton x:Name="radRecta" Content="Rectangle/Circle" Height="20" Width="auto" Foreground="White" Padding="5,0" Margin="10,0" VerticalAlignment="Center" Visibility="Visible" IsChecked="True" VerticalContentAlignment="Center" Click="radClassType_Checked"/>
-                        <RadioButton x:Name="radPoly" Content="Polyline" Height="20" Width="auto" Foreground="White" Padding="5,0" Margin="15,0" VerticalAlignment="Center" Visibility="Visible" IsChecked="False" VerticalContentAlignment="Center" Click="radClassType_Checked"/>
-                        <RadioButton x:Name="radAny" Content="Any" Height="20" Width="auto" Foreground="White" Padding="5,0" Margin="15,0" VerticalAlignment="Center" Visibility="Collapsed" IsChecked="False" VerticalContentAlignment="Center" Click="radClassType_Checked"/>
-                        <RadioButton x:Name="radSegregation" Content="Segregation" Height="20" Width="auto" Foreground="White" Padding="5,0" Margin="15,0" VerticalAlignment="Center" Visibility="Visible" IsChecked="False" VerticalContentAlignment="Center" Click="radClassType_Checked"/>
-                    </StackPanel>
-                </Grid>                
-            </telerik:GroupBox>
-
-            <telerik:GroupBox Grid.Row="1" Header="Class Details" Margin="5,5" FontSize="12" Foreground="White" FontFamily="Segoe UI" BorderBrush="White" BorderThickness="0.5">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="auto" />
-                        <RowDefinition Height="auto" />
-                    </Grid.RowDefinitions>
-
-                    <StackPanel x:Name="spClass" Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Label Content="Class Name " Margin="5,0,0,0" Width="auto" VerticalAlignment="Center" FontSize="14" Foreground="AntiqueWhite"/>
-                        <TextBox x:Name="txtClassName" Height="20" TextAlignment="Left" Width="200" Foreground="Black" BorderBrush="Black" Margin="0"  FontSize="13" FontFamily="Segoe UI" PreviewTextInput ="txtClassName_PreviewTextInput"/>
-                        <Label Content="Class Alias " Margin="25,0,0,0" VerticalAlignment="Center" FontSize="14" Foreground="AntiqueWhite"/>
-                        <TextBox x:Name="txtClassAlias" Height="20" TextAlignment="Left" Width="50" Foreground="Black" BorderBrush="Black" Margin="0"  FontSize="13" FontFamily="Segoe UI" PreviewTextInput="txtString_PreviewTextInput" PreviewKeyDown="txtClassAlias_PreviewKeyDown"/>
-                        <CheckBox x:Name="chkIsRealDefect" Content="Is Real Defect" FlowDirection="LeftToRight" Foreground="Wheat" IsChecked="False" Height="30" Width="auto" Padding="5,0" Margin="25,0,0,0" VerticalContentAlignment="Center">
-                        </CheckBox>
-
-                        <Border Cursor="Hand" Height="25" Width="25" CornerRadius="50" BorderBrush="DarkBlue" BorderThickness="0.1" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="20,5">
-                            <Border.Background>
-                                <RadialGradientBrush>
-                                    <GradientStop Color="#FF6A8CA6" Offset="1"/>
-                                    <GradientStop Color="DarkMagenta"/>
-                                </RadialGradientBrush>
-                            </Border.Background>
-                            <TextBlock Height="30" Width="30" FontSize="16" TextAlignment="Center" Foreground="White" FontWeight="ExtraBold" 
-                                       VerticalAlignment="Top" ToolTip="Add" HorizontalAlignment="Center" Text="+" PreviewMouseLeftButtonDown="AddClass_PreviewMouseLeftButtonDown"/>
-                        </Border>
-                    </StackPanel>
-
-                    <ListView Grid.Row="1" Margin="0" HorizontalContentAlignment="Center" Foreground="Black" FontWeight="Normal" FontSize="14" Height="auto" MinHeight="100" MaxHeight = "300" 
-                                  x:Name="lvProjectClass" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ItemsSource="{Binding}" Background="#FF5A5555">
-                        <ListView.Resources>
-                            <DataTemplate x:Key="DataTemplate">
-                                <Border BorderBrush="White" BorderThickness="1,0,0,0"/>
-                            </DataTemplate>
-                        </ListView.Resources>
-                        <ListView.ItemContainerStyle>
-                            <Style TargetType="ListViewItem">
-                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                <Setter Property="BorderBrush" Value="White"></Setter>
-                                <Setter Property="BorderThickness" Value="0,0,0,0.3"></Setter>
-                                <Setter Property="Height" Value="22"></Setter>
-
+                    <!-- Close -->
+                    <Border HorizontalAlignment="Right" VerticalAlignment="Center"
+                            Width="25" Height="25" CornerRadius="6" Cursor="Hand"
+                            Background="Transparent" PreviewMouseLeftButtonDown="ButtonSaveClose_Click">
+                        <Border.Style>
+                            <Style TargetType="Border">
                                 <Style.Triggers>
                                     <Trigger Property="IsMouseOver" Value="True">
-                                        <Setter Property="Background" Value="Gray"/>
-                                    </Trigger>
-                                    <Trigger Property="IsFocused" Value="True">
-                                        <Setter Property="Background" Value="#4F808080"/>
+                                        <Setter Property="Background" Value="Red"/>
                                     </Trigger>
                                 </Style.Triggers>
                             </Style>
-                        </ListView.ItemContainerStyle>
-
-                        <ListView.View>
-                            <GridView>
-                                <GridView.ColumnHeaderContainerStyle>
-                                    <Style TargetType="{x:Type GridViewColumnHeader}">
-                                        <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                        <Setter Property="Background" Value="#FF948F88"/>
-                                        <Setter Property="FontWeight" Value="SemiBold"/>
-                                    </Style>
-                                </GridView.ColumnHeaderContainerStyle>
-
-                                <GridViewColumn Width="100" Header="Class ID">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Path=ClassIndex}" Foreground="DarkGoldenrod" FontWeight="SemiBold" TextAlignment="Center"/>
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                                <GridViewColumn Header="Class Name" Width="250">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Path=ClassName}" Foreground="DarkGoldenrod" FontWeight="SemiBold" TextAlignment="Center"/>
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                                <GridViewColumn Header="Alias" Width="100">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Path=ClassAlias}" Foreground="DarkGoldenrod" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                                <GridViewColumn Header="Type" Width="100">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <TextBlock Text="{Binding Path=ShapeCoordinates}" Foreground="DarkGoldenrod" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                                <GridViewColumn Header="Operations" Width="135">
-                                    <GridViewColumn.CellTemplate>
-                                        <DataTemplate>
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Width="135" VerticalAlignment="Center">
-                                                <telerik:RadButton x:Name="btnRemove" BorderThickness="0" Height="25" Width="25" Background="Transparent" Margin="5,0,5,0" HorizontalAlignment="Right" Cursor="Hand" PreviewMouseDown="btnRemoveClass_PreviewMouseDown">
-                                                    <telerik:RadButton.ToolTip>
-                                                        <ToolTip>
-                                                            <StackPanel>
-                                                                <TextBlock FontStyle="Italic" ><Run Text="Remove Class"/></TextBlock>
-                                                            </StackPanel>
-                                                        </ToolTip>
-                                                    </telerik:RadButton.ToolTip>
-                                                    <materialDesign:PackIcon Foreground="Black" Background="Transparent" Kind="Delete" Height="25" Width="25" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                </telerik:RadButton>
-                                                <telerik:RadButton x:Name="btnEdit" BorderThickness="0" Height="25" Width="25" Background="Transparent" Margin="0,0,5,0" HorizontalAlignment="Right" Cursor="Hand" PreviewMouseDown="btnEditClass_PreviewMouseDown">
-                                                    <telerik:RadButton.ToolTip>
-                                                        <ToolTip>
-                                                            <StackPanel>
-                                                                <TextBlock FontStyle="Italic" ><Run Text="Edit Class"/></TextBlock>
-                                                            </StackPanel>
-                                                        </ToolTip>
-                                                    </telerik:RadButton.ToolTip>
-                                                    <materialDesign:PackIcon Foreground="Black" Background="Transparent" Kind="Pencil" Height="25" Width="25" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                </telerik:RadButton>
-                                                <telerik:RadButton x:Name="btnMoveUp" BorderThickness="0" Height="25" Width="25" Background="Transparent" Margin="0,0,5,0" HorizontalAlignment="Right" Cursor="Hand" PreviewMouseDown="btnMove_PreviewMouseDown">
-                                                    <telerik:RadButton.ToolTip>
-                                                        <ToolTip>
-                                                            <StackPanel>
-                                                                <TextBlock FontStyle="Italic"><Run Text="Move Up"/></TextBlock>
-                                                            </StackPanel>
-                                                        </ToolTip>
-                                                    </telerik:RadButton.ToolTip>
-                                                    <materialDesign:PackIcon Foreground="Black" Background="Transparent" Kind="ArrowUpBoldBox" Height="25" Width="25" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                </telerik:RadButton>
-                                                <telerik:RadButton x:Name="btnMoveDown" BorderThickness="0" Height="25" Width="25" Background="Transparent" Margin="0" HorizontalAlignment="Right" Cursor="Hand" PreviewMouseDown="btnMove_PreviewMouseDown">
-                                                    <telerik:RadButton.ToolTip>
-                                                        <ToolTip>
-                                                            <StackPanel>
-                                                                <TextBlock FontStyle="Italic"><Run Text="Move Down"/></TextBlock>
-                                                            </StackPanel>
-                                                        </ToolTip>
-                                                    </telerik:RadButton.ToolTip>
-                                                    <materialDesign:PackIcon Foreground="Black" Background="Transparent" Kind="ArrowDownBoldBox" Height="25" Width="25" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                </telerik:RadButton>
-                                            </StackPanel>                                           
-                                        </DataTemplate>
-                                    </GridViewColumn.CellTemplate>
-                                </GridViewColumn>
-                            </GridView>
-                        </ListView.View>
-                    </ListView>
+                        </Border.Style>
+                        <materialDesign:PackIcon Kind="Close" Width="18" Height="18"
+                             Foreground="Yellow"
+                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
                 </Grid>
-            </telerik:GroupBox>
-            <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,5">
-                <telerik:RadButton x:Name="btnGenerate" CornerRadius="10" Content="Generate Class File" BorderBrush="Black" Background="#FFB7CBDD" Foreground="Brown" 
-                        telerik:StyleManager.Theme="Expression_Dark" FontSize="15" VerticalContentAlignment="Center" Width="auto" Height="27" Padding="10,0" ToolTip="Generate Class File" Click="btnGenerate_Click" Margin="10,0,10,0"/>
-                <telerik:RadButton x:Name="btnDelete" CornerRadius="10" Content="Delete" BorderBrush="Black" Background="#FFB7CBDD" Foreground="Brown" 
-                        telerik:StyleManager.Theme="Expression_Dark" FontSize="15" VerticalContentAlignment="Center" Width="auto" Height="27" Padding="10,0" ToolTip="Click to delete project" Click="btnDelete_Click" Margin="10,0,10,0"/>
-            </StackPanel>
+            </Border>
+
+            <!-- ══════════════════════ BODY ══════════════════════ -->
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                          Background="{StaticResource BgDeep}">
+                <StackPanel Margin="16,14,16,0" >
+
+                    <!-- ── PROJECT DETAILS CARD ── -->
+                    <Border Background="{StaticResource BgCard}" CornerRadius="10"
+                            BorderBrush="{StaticResource Border}" BorderThickness="1"
+                            Margin="0,0,0,12" Padding="10,10">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionHeader}" Text="PROJECT DETAILS"/>
+
+                            <!-- Project Name row -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Label x:Name="lblProject" Content="Project Name"
+                                       Style="{StaticResource FieldLabel}" Grid.Column="0"/>
+                                <!-- Hidden textbox for new project input -->
+                                <TextBox x:Name="txtProjectName" Grid.Column="1"
+                                         Style="{StaticResource ModernTextBox}"
+                                         Visibility="Collapsed"
+                                         PreviewTextInput="txtClassName_PreviewTextInput"/>
+                                <telerik:RadComboBox x:Name="cmbProject" Grid.Column="1"
+                                         Height="32" Background="{StaticResource BgInput}"
+                                         Foreground="{StaticResource TextPrimary}" telerik:StyleManager.Theme="Expression_Dark"
+                                         BorderBrush="{StaticResource Border}" BorderThickness="1"
+                                         FontSize="15" VerticalContentAlignment="Center"
+                                         SelectionChanged="cmbProject_SelectionChanged"/>
+                                <!-- Add Project pill -->
+                                <Border x:Name="AddProject" Grid.Column="2"
+                                        Width="28" Height="28" CornerRadius="8"
+                                        Background="#2A3A7A" Cursor="Hand"
+                                        VerticalAlignment="Center" Margin="8,0,0,0"
+                                        PreviewMouseLeftButtonDown="AddProject_Click">
+                                    <materialDesign:PackIcon x:Name="packIconAddProject"
+                                                             Kind="Plus" Width="14" Height="14"
+                                                             Foreground="{StaticResource AccentBlue}"
+                                                             HorizontalAlignment="Center"
+                                                             VerticalAlignment="Center"/>
+                                    <Border.ToolTip>
+                                        <ToolTip Content="Add new project"/>
+                                    </Border.ToolTip>
+                                </Border>
+                            </Grid>
+
+                            <!-- Architecture row -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Label Content="Architecture" Style="{StaticResource FieldLabel}" Grid.Column="0"/>
+                                <telerik:RadComboBox x:Name="cmbArchitecture" Grid.Column="1"
+                                         Height="32" Background="{StaticResource BgInput}"
+                                         Foreground="{StaticResource TextPrimary}" telerik:StyleManager.Theme="Expression_Dark"
+                                         BorderBrush="{StaticResource Border}" BorderThickness="1"
+                                         FontSize="13" VerticalContentAlignment="Center"
+                                         SelectionChanged="cmbArchitecture_SelectionChanged"/>
+                            </Grid>
+
+                            <!-- Station row -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="160"/>
+                                </Grid.ColumnDefinitions>
+                                <Label Content="Station" Style="{StaticResource FieldLabel}" Grid.Column="0"/>
+                                <TextBox x:Name="txtStation" Grid.Column="1"
+                                         Style="{StaticResource ModernTextBox}"
+                                         PreviewTextInput="txtClassName_PreviewTextInput"/>
+                            </Grid>
+
+                            <!-- Total Classes + Lines row -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="70"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="70"/>
+                                </Grid.ColumnDefinitions>
+                                <Label Content="Total Classes" Style="{StaticResource FieldLabel}" Grid.Column="0"/>
+                                <TextBox x:Name="txtTotalClass" Grid.Column="1"
+                                         Style="{StaticResource ModernTextBox}"
+                                         PreviewTextInput="txtNumber_PreviewTextInput"/>
+                                <Label Content="Total Lines" Style="{StaticResource FieldLabel}"
+                                       Grid.Column="2" Margin="16,0,10,0" Visibility="Collapsed"/>
+                                <TextBox x:Name="txtTotalLines" Grid.Column="3"
+                                         Style="{StaticResource ModernTextBox}"
+                                         Visibility="Collapsed"
+                                         PreviewTextInput="txtNumber_PreviewTextInput"/>
+                            </Grid>
+
+                            <!-- Architecture row -->
+                            <Grid x:Name="gridIllumination" Margin="0,0,0,10" Visibility="Visible">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Label Content="Illumination Type" Style="{StaticResource FieldLabel}" Grid.Column="0"/>
+                                <telerik:RadComboBox x:Name="cmbIlluminations" Grid.Column="1"
+                                     Height="32" Background="{StaticResource BgInput}"
+                                     Foreground="{StaticResource TextPrimary}" telerik:StyleManager.Theme="Expression_Dark"
+                                     BorderBrush="{StaticResource Border}" BorderThickness="1"
+                                     FontSize="13" VerticalContentAlignment="Center"/>
+                            </Grid>
+                            
+                            <!-- Annotation Type row -->
+                            <Grid x:Name="spType" >
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Label Content="Annotation Type" Style="{StaticResource FieldLabel}" Grid.Column="0"/>
+                                <StackPanel Grid.Column="1" IsEnabled="False" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <RadioButton x:Name="radRecta" Content="Rectangle / Circle"
+                                                 Style="{StaticResource ModernRadio}"
+                                                 IsChecked="True" Click="radClassType_Checked"/>
+                                    <RadioButton x:Name="radPoly" Content="Polyline"
+                                                 Style="{StaticResource ModernRadio}"
+                                                 Click="radClassType_Checked"/>
+                                    <RadioButton x:Name="radAny" Content="Any"
+                                                 Style="{StaticResource ModernRadio}"
+                                                 Visibility="Collapsed" Click="radClassType_Checked"/>
+                                    <RadioButton x:Name="radSegregation" Content="Segregation"
+                                                 Style="{StaticResource ModernRadio}"
+                                                 Click="radClassType_Checked"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ── CLASS DETAILS CARD ── -->
+                    <Border Background="{StaticResource BgCard}" CornerRadius="10"
+                            BorderBrush="{StaticResource Border}" BorderThickness="1"
+                            Margin="0,0,0,12" Padding="16,14">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource SectionHeader}" Text="CLASS DETAILS"/>
+
+                            <!-- Add class row -->
+                            <StackPanel x:Name="spClass" Orientation="Horizontal"
+                                        VerticalAlignment="Center" Margin="0,0,0,12">
+                                <Label Content="Class Name" Style="{StaticResource FieldLabel}" Width="90"/>
+                                <TextBox x:Name="txtClassName" Width="170"
+                                         Style="{StaticResource ModernTextBox}"
+                                         PreviewTextInput="txtClassName_PreviewTextInput"/>
+                                <Label Content="Alias" Style="{StaticResource FieldLabel}"
+                                       Width="46" Margin="12,0,6,0"/>
+                                <TextBox x:Name="txtClassAlias" Width="70"
+                                         Style="{StaticResource ModernTextBox}"
+                                         PreviewTextInput="txtString_PreviewTextInput"
+                                         PreviewKeyDown="txtClassAlias_PreviewKeyDown"/>
+                                <CheckBox x:Name="chkIsRealDefect" Content="Real Defect"
+                                          Style="{StaticResource ModernCheck}"
+                                          IsChecked="False" Margin="14,0,0,0"
+                                          VerticalAlignment="Center"/>
+                                <!-- Add class button -->
+                                <Border Cursor="Hand" Width="32" Height="32" CornerRadius="8"
+                                        Background="#1A3A2A" Margin="12,0,0,0"
+                                        VerticalAlignment="Center"
+                                        PreviewMouseLeftButtonDown="AddClass_PreviewMouseLeftButtonDown">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Style.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="#2A4A3A"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <materialDesign:PackIcon Kind="Plus" Width="16" Height="16"
+                                                             Foreground="{StaticResource AccentTeal}"
+                                                             HorizontalAlignment="Center"
+                                                             VerticalAlignment="Center"/>
+                                </Border>
+                            </StackPanel>
+
+                            <!-- Class ListView -->
+                            <Border CornerRadius="8" BorderBrush="{StaticResource Border}"
+                                    BorderThickness="1" ClipToBounds="True">
+                                <ListView x:Name="lvProjectClass"
+                                          Background="{StaticResource BgPanel}"
+                                          BorderThickness="0"
+                                          Foreground="{StaticResource TextPrimary}"
+                                          FontSize="13" MinHeight="100" MaxHeight="250"
+                                          ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListView.ItemContainerStyle>
+                                        <Style TargetType="ListViewItem">
+                                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                            <Setter Property="Height"     Value="36"/>
+                                            <Setter Property="Background" Value="Transparent"/>
+                                            <Setter Property="Foreground" Value="{StaticResource TextPrimary}"/>
+                                            <Setter Property="Template">
+                                                <Setter.Value>
+                                                    <ControlTemplate TargetType="ListViewItem">
+                                                        <Border x:Name="RowBorder"
+                                                                Background="{TemplateBinding Background}"
+                                                                BorderBrush="{StaticResource Border}"
+                                                                BorderThickness="0,0,0,1"
+                                                                SnapsToDevicePixels="True">
+                                                            <Grid>
+                                                                <Border x:Name="AccentBar"
+                                                                        Width="3" HorizontalAlignment="Left"
+                                                                        Background="{StaticResource AccentBlue}"
+                                                                        Visibility="Collapsed"/>
+                                                                <GridViewRowPresenter
+                                                                    Content="{TemplateBinding Content}"
+                                                                    Columns="{Binding Path=View.Columns,
+                                                                        RelativeSource={RelativeSource AncestorType=ListView}}"
+                                                                    Margin="3,0,0,0"
+                                                                    VerticalAlignment="Center"/>
+                                                            </Grid>
+                                                        </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsMouseOver" Value="True">
+                                                                <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource BgHover}"/>
+                                                            </Trigger>
+                                                            <Trigger Property="IsSelected" Value="True">
+                                                                <Setter TargetName="RowBorder" Property="Background"  Value="#1A2E50"/>
+                                                                <Setter TargetName="RowBorder" Property="BorderBrush" Value="#2A4A7A"/>
+                                                                <Setter TargetName="AccentBar" Property="Visibility"  Value="Visible"/>
+                                                                <Setter Property="Foreground" Value="White"/>
+                                                            </Trigger>
+                                                            <MultiTrigger>
+                                                                <MultiTrigger.Conditions>
+                                                                    <Condition Property="IsSelected"  Value="True"/>
+                                                                    <Condition Property="IsMouseOver" Value="True"/>
+                                                                </MultiTrigger.Conditions>
+                                                                <Setter TargetName="RowBorder" Property="Background" Value="#203860"/>
+                                                            </MultiTrigger>
+                                                        </ControlTemplate.Triggers>
+                                                    </ControlTemplate>
+                                                </Setter.Value>
+                                            </Setter>
+                                        </Style>
+                                    </ListView.ItemContainerStyle>
+                                    <ListView.View>
+                                        <GridView>
+                                            <GridView.ColumnHeaderContainerStyle>
+                                                <Style TargetType="{x:Type GridViewColumnHeader}">
+                                                    <Setter Property="Background"              Value="{StaticResource BgDeep}"/>
+                                                    <Setter Property="Foreground"              Value="{StaticResource TextSecond}"/>
+                                                    <Setter Property="FontSize"                Value="11"/>
+                                                    <Setter Property="FontWeight"              Value="SemiBold"/>
+                                                    <Setter Property="Height"                  Value="32"/>
+                                                    <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                                                    <Setter Property="Padding"                 Value="10,0"/>
+                                                    <Setter Property="BorderBrush"             Value="{StaticResource Border}"/>
+                                                    <Setter Property="BorderThickness"         Value="0,0,0,1"/>
+                                                </Style>
+                                            </GridView.ColumnHeaderContainerStyle>
+
+                                            <GridViewColumn Header="ID" Width="80">
+                                                <GridViewColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding Path=ClassIndex}"
+                                                                   Foreground="{StaticResource AccentBlue}"
+                                                                   FontWeight="SemiBold" TextAlignment="Center"/>
+                                                    </DataTemplate>
+                                                </GridViewColumn.CellTemplate>
+                                            </GridViewColumn>
+
+                                            <GridViewColumn Header="Class Name" Width="200">
+                                                <GridViewColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding Path=ClassName}"
+                                                                   Foreground="{StaticResource TextPrimary}"
+                                                                   FontWeight="Normal"/>
+                                                    </DataTemplate>
+                                                </GridViewColumn.CellTemplate>
+                                            </GridViewColumn>
+
+                                            <GridViewColumn Header="Alias" Width="90">
+                                                <GridViewColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding Path=ClassAlias}"
+                                                                   Foreground="{StaticResource TextSecond}"/>
+                                                    </DataTemplate>
+                                                </GridViewColumn.CellTemplate>
+                                            </GridViewColumn>
+
+                                            <GridViewColumn Header="Type" Width="80">
+                                                <GridViewColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <Border CornerRadius="4" Padding="6,2"
+                                                                HorizontalAlignment="Left">
+                                                            <Border.Style>
+                                                                <Style TargetType="Border">
+                                                                    <Setter Property="Background" Value="#1A2A3A"/>
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding ShapeCoordinates}" Value="Fail">
+                                                                            <Setter Property="Background" Value="#3A1A1A"/>
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding ShapeCoordinates}" Value="Pass">
+                                                                            <Setter Property="Background" Value="#1A3A2A"/>
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </Border.Style>
+                                                            <TextBlock Text="{Binding Path=ShapeCoordinates}"
+                                                                       FontSize="11" FontWeight="SemiBold">
+                                                                <TextBlock.Style>
+                                                                    <Style TargetType="TextBlock">
+                                                                        <Setter Property="Foreground" Value="{StaticResource AccentBlue}"/>
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding ShapeCoordinates}" Value="Fail">
+                                                                                <Setter Property="Foreground" Value="{StaticResource AccentRed}"/>
+                                                                            </DataTrigger>
+                                                                            <DataTrigger Binding="{Binding ShapeCoordinates}" Value="Pass">
+                                                                                <Setter Property="Foreground" Value="{StaticResource AccentTeal}"/>
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </TextBlock.Style>
+                                                            </TextBlock>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </GridViewColumn.CellTemplate>
+                                            </GridViewColumn>
+
+                                            <GridViewColumn Header="Operations" Width="130">
+                                                <GridViewColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal"
+                                                                    HorizontalAlignment="Center"
+                                                                    VerticalAlignment="Center">
+                                                            <!-- Delete -->
+                                                            <telerik:RadButton x:Name="btnRemove"
+                                                                               BorderThickness="0" Height="26" Width="26"
+                                                                               Background="Transparent" Margin="2,0"
+                                                                               Cursor="Hand"
+                                                                               PreviewMouseDown="btnRemoveClass_PreviewMouseDown">
+                                                                <telerik:RadButton.ToolTip>
+                                                                    <ToolTip Content="Remove Class"/>
+                                                                </telerik:RadButton.ToolTip>
+                                                                <materialDesign:PackIcon Kind="Delete"
+                                                                                         Width="16" Height="16"
+                                                                                         Foreground="{StaticResource AccentRed}"/>
+                                                            </telerik:RadButton>
+                                                            <!-- Edit -->
+                                                            <telerik:RadButton x:Name="btnEdit"
+                                                                               BorderThickness="0" Height="26" Width="26"
+                                                                               Background="Transparent" Margin="2,0"
+                                                                               Cursor="Hand"
+                                                                               PreviewMouseDown="btnEditClass_PreviewMouseDown">
+                                                                <telerik:RadButton.ToolTip>
+                                                                    <ToolTip Content="Edit Class"/>
+                                                                </telerik:RadButton.ToolTip>
+                                                                <materialDesign:PackIcon Kind="Pencil"
+                                                                                         Width="16" Height="16"
+                                                                                         Foreground="{StaticResource AccentBlue}"/>
+                                                            </telerik:RadButton>
+                                                            <!-- Move Up -->
+                                                            <telerik:RadButton x:Name="btnMoveUp"
+                                                                               BorderThickness="0" Height="26" Width="26"
+                                                                               Background="Transparent" Margin="2,0"
+                                                                               Cursor="Hand"
+                                                                               PreviewMouseDown="btnMove_PreviewMouseDown">
+                                                                <telerik:RadButton.ToolTip>
+                                                                    <ToolTip Content="Move Up"/>
+                                                                </telerik:RadButton.ToolTip>
+                                                                <materialDesign:PackIcon Kind="ArrowUpBoldBox"
+                                                                                         Width="16" Height="16"
+                                                                                         Foreground="{StaticResource TextSecond}"/>
+                                                            </telerik:RadButton>
+                                                            <!-- Move Down -->
+                                                            <telerik:RadButton x:Name="btnMoveDown"
+                                                                               BorderThickness="0" Height="26" Width="26"
+                                                                               Background="Transparent" Margin="2,0"
+                                                                               Cursor="Hand"
+                                                                               PreviewMouseDown="btnMove_PreviewMouseDown">
+                                                                <telerik:RadButton.ToolTip>
+                                                                    <ToolTip Content="Move Down"/>
+                                                                </telerik:RadButton.ToolTip>
+                                                                <materialDesign:PackIcon Kind="ArrowDownBoldBox"
+                                                                                         Width="16" Height="16"
+                                                                                         Foreground="{StaticResource TextSecond}"/>
+                                                            </telerik:RadButton>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </GridViewColumn.CellTemplate>
+                                            </GridViewColumn>
+                                        </GridView>
+                                    </ListView.View>
+                                </ListView>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ══════════════════════ FOOTER ══════════════════════ -->
+            <Border Grid.Row="2" Background="{StaticResource BgPanel}"
+                    BorderBrush="{StaticResource Border}" BorderThickness="0,1,0,0"
+                    CornerRadius="0,0,10,10">
+                <Grid Margin="16,0">
+                    <!-- Separator line accent -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                                VerticalAlignment="Center">
+                        <telerik:RadButton x:Name="btnDelete"
+                                           Style="{StaticResource DangerBtn}"
+                                           Content="Delete Project"
+                                           Visibility="Collapsed"
+                                           ToolTip="Delete this project"
+                                           Margin="0,0,10,0"
+                                           Click="btnDelete_Click">
+                            <telerik:RadButton.ContentTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="Delete"
+                                                                 Width="15" Height="15"
+                                                                 VerticalAlignment="Center"
+                                                                 Margin="0,0,6,0"/>
+                                        <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </telerik:RadButton.ContentTemplate>
+                        </telerik:RadButton>
+
+                        <telerik:RadButton x:Name="btnGenerate"
+                                           Style="{StaticResource PrimaryBtn}"
+                                           Content="Generate Class File"
+                                           ToolTip="Generate Class File"
+                                           Click="btnGenerate_Click">
+                            <telerik:RadButton.ContentTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <materialDesign:PackIcon Kind="CodeBraces"
+                                                                 Width="15" Height="15"
+                                                                 VerticalAlignment="Center"
+                                                                 Margin="0,0,6,0"/>
+                                        <TextBlock Text="{Binding}" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </telerik:RadButton.ContentTemplate>
+                        </telerik:RadButton>
+                    </StackPanel>
+                </Grid>
+            </Border>
         </Grid>
-    </Grid>
+    </Border>
 </Window>
